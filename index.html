@@ -1,6 +1,6 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>帰り灯 KAERIBI | レイヤーマップ v2.6</title><style>
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>帰り灯 KAERIBI | レイヤーマップ v2.7</title><style>
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;position:fixed;inset:0;background:#03090d;color:#e9dfce;overflow:hidden;overscroll-behavior:none;font-family:serif;touch-action:none;-webkit-overflow-scrolling:auto}canvas{width:100vw;height:100dvh;display:block;touch-action:none;user-select:none;-webkit-user-select:none}#ui{position:fixed;top:calc(14px + env(safe-area-inset-top));left:17px;text-shadow:0 2px 10px #000;font-size:12px;letter-spacing:.13em;pointer-events:none}#ui strong{font-size:21px;font-weight:normal;letter-spacing:.2em}#msg{position:fixed;bottom:175px;left:50%;transform:translateX(-50%);background:#071017ed;border:1px solid #b6aa8770;padding:14px 20px;text-align:center;font-size:14px;min-width:240px;max-width:85vw;opacity:0;transition:opacity .2s;pointer-events:none}#pad{position:fixed;left:14px;bottom:calc(38px + env(safe-area-inset-bottom));width:178px;height:178px;border-radius:50%;background:#cbd5d61a;border:1px solid #d8ddd977;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}#nub{position:absolute;left:67px;top:67px;width:44px;height:44px;border-radius:50%;background:#d0d7d58c;pointer-events:none}button{position:fixed;right:25px;bottom:calc(64px + env(safe-area-inset-bottom));width:76px;height:76px;border-radius:50%;background:#263b45cc;border:1px solid #ddd1b08c;color:#fff4dd;font-size:13px}#run{right:112px;bottom:calc(28px + env(safe-area-inset-bottom));width:58px;height:58px}@media(pointer:fine){#pad,button{opacity:.5}}</style></head><body>
-<canvas id="scene"></canvas><div id="ui"><strong>帰り灯</strong><br>KAERIBI — 夜の路地<br><small>レイヤーマップ / v2.6</small></div><div id="msg"></div><div id="pad"><div id="nub"></div></div>
+<canvas id="scene"></canvas><div id="ui"><strong>帰り灯</strong><br>KAERIBI — 夜の路地<br><small>レイヤーマップ / v2.7</small></div><div id="msg"></div><div id="pad"><div id="nub"></div></div>
 <script>
 const cv=document.getElementById('scene');let ctx=cv.getContext('2d');
 let W=innerWidth,H=innerHeight,D=1;
@@ -96,13 +96,68 @@ const rnd=(x,y,k=1)=>{let n=Math.sin(x*127.1+y*311.7+k*74.7)*43758.5453;return n
 function box(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(x,y,w,h)}
 function line(x,y,xx,yy,color,width=1){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(xx,yy);ctx.stroke()}
 function ellipse(x,y,rx,ry,color){ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fill()}
-function tileDraw(i,j){const x=i*TILE,y=j*TILE,t=tiles[j][i];box(x,y,TILE,TILE,t===1?'#292f34':t===2?'#44413a':'#172923');for(let k=0;k<20;k++){let px=x+rnd(i,j,k)*64,py=y+rnd(j,i,k+20)*64;box(px,py,1+rnd(k,i)*2,1,t===0?'#46604450':'#8d918350')}if(t===1){if(tiles[j-1]?.[i]===0){box(x,y,64,5,'#8b8675');line(x,y+8,x+64,y+8,'#5d5b53')}if(tiles[j+1]?.[i]===0)box(x,y+59,64,5,'#888275')}if(t===2){for(let a=0;a<3;a++)line(x,y+17+a*18,x+64,y+17+a*18,'#70695a28')}}
+function tileDraw(i,j){
+ const x=i*TILE,y=j*TILE,t=tiles[j][i];
+ const colors=t===1?['#30383b','#353b3e','#2c373a']:t===2?['#464640','#454139','#504940']:['#182922','#1b3027','#1f3027'];
+ box(x,y,TILE,TILE,colors[Math.floor(rnd(i,j,7)*colors.length)]);
+ // Sparse multiscale grain, softer than repeated geometric blocks.
+ for(let k=0;k<32;k++){
+  let px=x+rnd(i,j,k)*64,py=y+rnd(j,i,k+31)*64;
+  ellipse(px,py,.3+rnd(i,k)*1.2,.3+rnd(j,k)*1.1,t===0?'#586f4937':'#c0b6a51a');
+ }
+ if(t===0){
+  for(let k=0;k<4;k++){let px=x+rnd(i,j,k+80)*64,py=y+rnd(j,i,k+60)*64;ellipse(px,py,6+rnd(k,i)*8,3+rnd(k,j)*7,'#3e593045')}
+ }
+ if(t===1){
+  if(tiles[j-1]?.[i]===0){box(x,y,64,7,'#817c6d');line(x,y+8,x+64,y+8,'#575e58')}
+  if(tiles[j+1]?.[i]===0){box(x,y+57,64,7,'#817c6d');line(x,y+57,x+64,y+57,'#aa9d8466')}
+  if(rnd(i,j,99)>.64){let q=x+7+rnd(i,j,77)*43;line(q,y+8,q+3,y+30,'#131e2399');line(q+3,y+30,q-4,y+52,'#111e2199')}
+  if(rnd(i,j,100)>.80)ellipse(x+31,y+24,22,8,'#78858719');
+ }
+ if(t===2){for(let k=0;k<3;k++)line(x,y+k*21+6,x+64,y+k*21+6,'#a49a8530')}
+}
 // Static ground is cached once; hundreds of decorative marks no longer redraw each frame.
 const groundCanvas=document.createElement('canvas');groundCanvas.width=MW;groundCanvas.height=MH;
 const screenCtx=ctx;ctx=groundCanvas.getContext('2d');
 for(let j=0;j<ROWS;j++)for(let i=0;i<COLS;i++)tileDraw(i,j);
 ctx=screenCtx;
-function drawHouse(o){const {x,y,w,h}=o;box(x+12,y+17,w,h,'#0b131a');box(x,y+30,w,h-30,'#4b4b47');for(let yy=y+40;yy<y+h;yy+=32){line(x+3,yy,x+w-3,yy,'#272c32',2);for(let xx=x+12;xx<x+w;xx+=52)line(xx,yy,xx-13,yy+31,'#30383d',1.4)}ctx.fillStyle='#202d39';ctx.beginPath();ctx.moveTo(x-24,y+48);ctx.lineTo(x+w/2,y-65);ctx.lineTo(x+w+24,y+48);ctx.closePath();ctx.fill();for(let a=0;a<14;a++){let yy=y-40+a*6;line(x+w/2-(a*18),yy,x+w/2+(a*18),yy,'#46515a55',1.5)}box(x+w*.18,y+h-65,45,52,'#b99c64');box(x+w*.18+5,y+h-60,35,42,'#ebba6480');box(x+w*.72,y+h-65,38,50,'#161c20');line(x+w*.72+19,y+h-65,x+w*.72+19,y+h-15,'#77756a',3)}
+function drawHouse(o){
+ const {x,y,w,h}=o;const roofTop=y+44,foot=y+h;
+ // Deep shadow and textured plaster sit behind the sloped tiled roof.
+ box(x+12,y+20,w,h-16,'#0c171b');
+ const wall=ctx.createLinearGradient(x,y,x+w,y+h);
+ wall.addColorStop(0,'#4a4d47');wall.addColorStop(.45,'#343b3b');wall.addColorStop(1,'#1c282c');
+ box(x,y+roofTop,w,h-roofTop,wall);
+ for(let yy=y+roofTop;yy<foot;yy+=35){
+  line(x+4,yy,x+w-4,yy,'#17232999',1.2);
+  for(let xx=x+10;xx<x+w;xx+=57){if(rnd(xx,yy)<.65)line(xx,yy+1,xx-5,yy+28,'#a4a29515',1)}
+ }
+ const lightX=x+w*.24,lightY=foot-64;
+ box(lightX-6,lightY-6,60,64,'#192225');
+ box(lightX,lightY,47,52,'#9a8055');
+ box(lightX+5,lightY+4,36,43,'#ebba797e');
+ for(let q=0;q<5;q++)line(lightX+6+q*8,lightY+4,lightX+6+q*8,lightY+46,'#322d2a',2);
+ box(x+w*.72,foot-70,43,61,'#121d22');
+ box(x+w*.72+4,foot-65,34,50,'#222e30');
+ line(x+w*.72+22,foot-65,x+w*.72+22,foot-12,'#80857b',2);
+ // Roof is a separate visual shape; its physical boundary remains the building footprint.
+ const roof=ctx.createLinearGradient(x,y-80,x,roofTop+30);
+ roof.addColorStop(0,'#273846');roof.addColorStop(.4,'#293943');roof.addColorStop(1,'#121e28');
+ ctx.fillStyle=roof;ctx.beginPath();
+ ctx.moveTo(x-19,roofTop);ctx.lineTo(x+w*.50,y-62);
+ ctx.lineTo(x+w+19,roofTop);ctx.lineTo(x+w+7,roofTop+36);
+ ctx.lineTo(x-7,roofTop+36);ctx.closePath();ctx.fill();
+ ctx.save();ctx.beginPath();ctx.moveTo(x-19,roofTop);ctx.lineTo(x+w*.5,y-62);ctx.lineTo(x+w+19,roofTop);ctx.lineTo(x+w+7,roofTop+36);ctx.lineTo(x-7,roofTop+36);ctx.closePath();ctx.clip();
+ for(let ry=y-55;ry<roofTop+43;ry+=12){
+  const offset=Math.floor(ry/12)%2*17;
+  line(x-24,ry,x+w+24,ry,'#5d677065',1.5);
+  for(let rx=x-30+offset;rx<x+w+35;rx+=35){
+   line(rx,ry,rx+4,ry+11,'#61747b55',1);
+   line(rx+8,ry+3,rx+29,ry+3,'#08151cb0',2);
+  }
+ }
+ ctx.restore();line(x-18,roofTop,x+w/2,y-61,'#79848a',2.5);line(x+w/2,y-61,x+w+19,roofTop,'#79848a',2.5);
+}
 function drawObject(o){if(!o.visible)return;const {x,y,w,h}=o;
 if(o.renderMode==='ground'){
  if(o.style==='manhole'){ellipse(x+w/2,y+h/2,w*.5,h*.5,'#0b1517');ellipse(x+w/2,y+h/2,w*.40,h*.37,'#424a48');ellipse(x+w/2,y+h/2,w*.32,h*.29,'#1b2528');for(let k=0;k<8;k++){let a=k*Math.PI/4;line(x+w/2+Math.cos(a)*w*.15,y+h/2+Math.sin(a)*h*.12,x+w/2+Math.cos(a)*w*.28,y+h/2+Math.sin(a)*h*.22,'#63706e',1.4)}}
