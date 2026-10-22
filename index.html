@@ -1,6 +1,6 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>帰り灯 KAERIBI | レイヤーマップ v2.3</title><style>
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>帰り灯 KAERIBI | レイヤーマップ v2.4</title><style>
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;position:fixed;inset:0;background:#03090d;color:#e9dfce;overflow:hidden;overscroll-behavior:none;font-family:serif;touch-action:none;-webkit-overflow-scrolling:auto}canvas{width:100vw;height:100dvh;display:block;touch-action:none;user-select:none;-webkit-user-select:none}#ui{position:fixed;top:calc(14px + env(safe-area-inset-top));left:17px;text-shadow:0 2px 10px #000;font-size:12px;letter-spacing:.13em;pointer-events:none}#ui strong{font-size:21px;font-weight:normal;letter-spacing:.2em}#msg{position:fixed;bottom:175px;left:50%;transform:translateX(-50%);background:#071017ed;border:1px solid #b6aa8770;padding:14px 20px;text-align:center;font-size:14px;min-width:240px;max-width:85vw;opacity:0;transition:opacity .2s;pointer-events:none}#pad{position:fixed;left:14px;bottom:calc(38px + env(safe-area-inset-bottom));width:178px;height:178px;border-radius:50%;background:#cbd5d61a;border:1px solid #d8ddd977;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}#nub{position:absolute;left:67px;top:67px;width:44px;height:44px;border-radius:50%;background:#d0d7d58c;pointer-events:none}button{position:fixed;right:25px;bottom:calc(64px + env(safe-area-inset-bottom));width:76px;height:76px;border-radius:50%;background:#263b45cc;border:1px solid #ddd1b08c;color:#fff4dd;font-size:13px}#run{right:112px;bottom:calc(28px + env(safe-area-inset-bottom));width:58px;height:58px}@media(pointer:fine){#pad,button{opacity:.5}}</style></head><body>
-<canvas id="scene"></canvas><div id="ui"><strong>帰り灯</strong><br>KAERIBI — 夜の路地<br><small>レイヤーマップ / v2.3</small></div><div id="msg"></div><div id="pad"><div id="nub"></div></div>
+<canvas id="scene"></canvas><div id="ui"><strong>帰り灯</strong><br>KAERIBI — 夜の路地<br><small>レイヤーマップ / v2.4</small></div><div id="msg"></div><div id="pad"><div id="nub"></div></div>
 <script>
 const cv=document.getElementById('scene'),ctx=cv.getContext('2d');
 let W=innerWidth,H=innerHeight,D=1;
@@ -29,15 +29,18 @@ const objects=[
 ];
 // World coordinates refer to a shared ground plane. Visual bounds, collision, and depth are separate.
 const objectById=new Map(objects.map(o=>[o.id,o]));
+if(objectById.size!==objects.length)throw Error('Duplicate world object IDs');
 function setupObject(o){
  o.layer=o.layer||(o.type==='item'||o.type==='decal'?'ground':'world');
  o.state=o.state||'normal';
  o.visible=o.visible!==false;
  o.collidable=o.collidable!==false&&o.layer!=='ground';
  o.depthY=Number.isFinite(o.depthY)?o.depthY:o.y+o.h;
+ o.renderMode=o.layer==='ground'?'ground':'depth';
+ o.tags=o.tags||[];
  // Only the physical footprint blocks movement, never the whole sprite.
  const footprints={
-  house:{x:0,y:Math.max(0,o.h-88),w:o.w,h:88},
+  house:{x:0,y:0,w:o.w,h:o.h},
   tree:{x:o.w*.37,y:o.h*.68,w:o.w*.26,h:o.h*.32},
   fence:{x:0,y:0,w:o.w,h:o.h},
   vending:{x:0,y:o.h*.62,w:o.w,h:o.h*.38},
@@ -72,8 +75,15 @@ function objectBounds(o){
  }
  return objectFootprint(o);
 }
+// Rendering, collision and ground contact never derive from one another implicitly.
+function intersects(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y}
+function touchesObject(o,footprint){return o.visible&&o.collidable&&intersects(footprint,objectBounds(o))}
+function groundedTerrain(x,y){
+ const i=Math.floor(x/TILE),j=Math.floor(y/TILE);
+ return i>=0&&j>=0&&i<COLS&&j<ROWS&&tiles[j][i]!==0;
+}
 const player={x:960,y:785,dir:'down',step:0};
-let joy={x:0,y:0,id:null,dash:false},keys=new Set(),last=performance.now(),time=0;
+let joy={x:0,y:0,id:null,dash:false},keys=new Set(),last=performance.now(),time=0,debugCollision=false;
 const rnd=(x,y,k=1)=>{let n=Math.sin(x*127.1+y*311.7+k*74.7)*43758.5453;return n-Math.floor(n)};
 function box(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(x,y,w,h)}
 function line(x,y,xx,yy,color,width=1){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(xx,yy);ctx.stroke()}
@@ -85,10 +95,16 @@ if(o.type==='vending'){if(o.state==='fallen'||o.state==='falling'){ctx.save();ct
 if(o.type==='car'){ellipse(x+w/2,y+h-10,w*.58,25,'#0009');box(x+12,y+13,w-24,h-24,'#64665e');box(x+21,y+30,w-42,50,'#26323a');box(x+20,y+h-60,w-40,38,'#7c7a6c');box(x+5,y+30,13,32,'#1c2022');box(x+w-18,y+30,13,32,'#1c2022');box(x+18,y+h-16,21,7,'#a94b40');box(x+w-39,y+h-16,21,7,'#a94b40');return}
 if(o.type==='fence'){box(x,y,w,h,'#54544a');for(let k=10;k<h;k+=23)line(x,y+k,x+w,y+k,'#242c2e',3);return}
 if(o.type==='tree'){ellipse(x+w/2,y+h/2,w*.75,h*.65,'#0a1511');for(let k=0;k<19;k++){let xx=x+rnd(k,x)*w,yy=y+rnd(k,y)*h;ellipse(xx,yy,10+rnd(k,y)*15,9+rnd(k,x)*13,['#1b3327','#294333','#3b4a2c','#172a25'][k%4])}}}
-function occupied(x,y){return objects.some(o=>{if(o.collidable===false)return false;const b=objectBounds(o);return x>b.x&&x<b.x+b.w&&y>b.y&&y<b.y+b.h})}
-function pass(x,y){const r=9;return [[0,0],[-r,0],[r,0],[0,-r],[0,r]].every(([dx,dy])=>{let a=x+dx,b=y+dy,i=Math.floor(a/TILE),j=Math.floor(b/TILE);return a>=0&&b>=0&&a<MW&&b<MH&&tiles[j]?.[i]>0&&!occupied(a,b)})}
+// Player position is the center of the feet, not the sprite's head or torso.
+function playerFeet(x,y){return {x:x-8,y:y-5,w:16,h:10}}
+function pass(x,y){
+ const foot=playerFeet(x,y);
+ const probes=[[foot.x,foot.y],[foot.x+foot.w,foot.y],[foot.x,foot.y+foot.h],[foot.x+foot.w,foot.y+foot.h]];
+ if(!probes.every(([tx,ty])=>groundedTerrain(tx,ty)))return false;
+ return !objects.some(o=>touchesObject(o,foot));
+}
 function character(){let x=player.x,y=player.y,bob=Math.sin(player.step)*2;ellipse(x,y+1,14,5,'#0009');box(x-12,y-34+bob,24,30,'#8d5e5a');box(x-11,y-6+bob,9,8,'#313a46');box(x+2,y-6+bob,9,8,'#313a46');ellipse(x,y-38+bob,15,16,'#c5a69a');ellipse(x,y-49+bob,16,10,'#25232d');box(x-15,y-50+bob,30,7,'#292832')}
-function frame(ts){const dt=Math.min((ts-last)/1000,.05);last=ts;time=ts;updateWorld(dt);let dx=joy.x,dy=joy.y;if(keys.has('ArrowLeft')||keys.has('KeyA'))dx--;if(keys.has('ArrowRight')||keys.has('KeyD'))dx++;if(keys.has('ArrowUp')||keys.has('KeyW'))dy--;if(keys.has('ArrowDown')||keys.has('KeyS'))dy++;let n=Math.hypot(dx,dy);if(n>.08){dx/=Math.max(1,n);dy/=Math.max(1,n);const sp=(joy.dash||keys.has('ShiftLeft')||keys.has('ShiftRight')?210:120)*dt;for(let k=0;k<Math.ceil(sp/3);k++){let d=sp/Math.ceil(sp/3);if(pass(player.x+dx*d,player.y))player.x+=dx*d;if(pass(player.x,player.y+dy*d))player.y+=dy*d}player.dir=Math.abs(dx)>Math.abs(dy)?dx>0?'right':'left':dy>0?'down':'up';player.step+=dt*11}
+function frame(ts){const dt=Math.min((ts-last)/1000,.05);last=ts;time=ts;updateWorld(dt);let dx=joy.x,dy=joy.y;if(keys.has('ArrowLeft')||keys.has('KeyA'))dx--;if(keys.has('ArrowRight')||keys.has('KeyD'))dx++;if(keys.has('ArrowUp')||keys.has('KeyW'))dy--;if(keys.has('ArrowDown')||keys.has('KeyS'))dy++;let n=Math.hypot(dx,dy);if(n>.08){dx/=Math.max(1,n);dy/=Math.max(1,n);const sp=(joy.dash||keys.has('ShiftLeft')||keys.has('ShiftRight')?210:120)*dt;const steps=Math.max(1,Math.ceil(sp/3));for(let k=0;k<steps;k++){let d=sp/steps;if(pass(player.x+dx*d,player.y))player.x+=dx*d;if(pass(player.x,player.y+dy*d))player.y+=dy*d}player.dir=Math.abs(dx)>Math.abs(dy)?dx>0?'right':'left':dy>0?'down':'up';player.step+=dt*11}
 ctx.setTransform(D,0,0,D,0,0);box(0,0,W,H,'#071019');const z=Math.max(W/1000,H/710);ctx.save();ctx.translate(W/2-player.x*z,H/2-player.y*z);ctx.scale(z,z);
 for(let j=0;j<ROWS;j++)for(let i=0;i<COLS;i++)tileDraw(i,j);
 // Ground decals and dropped items must always be BELOW feet and standing objects.
@@ -96,11 +112,14 @@ for(let j=0;j<ROWS;j++)for(let i=0;i<COLS;i++)tileDraw(i,j);
 const groundObjects=objects.filter(o=>o.layer==='ground'||o.type==='item'||o.type==='decal');
 for(const o of groundObjects)drawObject(o);
 const depthActors=objects.filter(o=>o.visible&&!groundObjects.includes(o)).map(o=>({
- depth:o.depthY,order:0,draw:()=>drawObject(o)
+ depth:o.type==='vending'&&o.state==='fallen'?o.y+o.h:o.depthY,order:0,draw:()=>drawObject(o)
 }));
 depthActors.push({depth:player.y,order:1,draw:character});
 depthActors.sort((a,b)=>a.depth-b.depth||a.order-b.order);
 for(const actor of depthActors)actor.draw();
+if(debugCollision){ctx.save();for(let j=0;j<ROWS;j++)for(let i=0;i<COLS;i++){ctx.strokeStyle=tiles[j][i]?'#35d89755':'#c34d4d44';ctx.lineWidth=1;ctx.strokeRect(i*TILE,j*TILE,TILE,TILE)}
+for(const o of objects){if(!o.collidable)continue;const b=objectBounds(o);ctx.fillStyle='#ef58563a';ctx.fillRect(b.x,b.y,b.w,b.h);ctx.strokeStyle='#ff9c84';ctx.strokeRect(b.x,b.y,b.w,b.h)}
+let f=playerFeet(player.x,player.y);ctx.strokeStyle='#55ffff';ctx.lineWidth=2;ctx.strokeRect(f.x,f.y,f.w,f.h);ctx.restore()}
 for(const [x,y] of [[830,695],[1550,710],[940,1220]]){let g=ctx.createRadialGradient(x,y,3,x,y,260);g.addColorStop(0,'#e6b06a35');g.addColorStop(1,'#e6b06a00');box(x-260,y-260,520,520,g);ellipse(x,y,9,6,'#f5d18a')}
 ctx.restore();let g=ctx.createRadialGradient(W/2,H/2,50,W/2,H/2,Math.max(W,H)*.7);g.addColorStop(0,'#0000');g.addColorStop(1,'#000b');box(0,0,W,H,g);requestAnimationFrame(frame)}
 const pad=document.getElementById('pad'),nub=document.getElementById('nub');
@@ -109,7 +128,8 @@ function move(e){let r=pad.getBoundingClientRect(),x=(e.clientX-r.left-r.width/2
 zone.addEventListener('pointerdown',e=>{e.preventDefault();if(joy.id!==null)return;joy.id=e.pointerId;zone.setPointerCapture(e.pointerId);move(e)});
 zone.addEventListener('pointermove',e=>{if(e.pointerId===joy.id){e.preventDefault();move(e)}});
 for(const t of ['pointerup','pointercancel','lostpointercapture'])zone.addEventListener(t,e=>{if(e.pointerId===joy.id){joy.id=null;joy.x=joy.y=0;joy.dash=false;nub.style.transform='none'}});
-addEventListener('keydown',e=>{keys.add(e.code);if(e.code.startsWith('Arrow'))e.preventDefault()});addEventListener('keyup',e=>keys.delete(e.code));
+addEventListener('keydown',e=>{keys.add(e.code);if(e.code==='KeyB'&&!e.repeat)debugCollision=!debugCollision;if(e.code.startsWith('Arrow'))e.preventDefault()});addEventListener('keyup',e=>keys.delete(e.code));
+addEventListener('blur',()=>{keys.clear();joy.x=joy.y=0;joy.id=null;joy.dash=false;nub.style.transform='none'});
 document.addEventListener('touchmove',e=>{if(e.cancelable)e.preventDefault()},{passive:false});addEventListener('gesturestart',e=>{if(e.cancelable)e.preventDefault()},{passive:false});
 requestAnimationFrame(frame);
 </script></body></html>
