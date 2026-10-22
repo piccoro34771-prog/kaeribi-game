@@ -1,6 +1,6 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>帰り灯 KAERIBI | レイヤーマップ v2.1</title><style>
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>帰り灯 KAERIBI | レイヤーマップ v2.2</title><style>
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;position:fixed;inset:0;background:#03090d;color:#e9dfce;overflow:hidden;overscroll-behavior:none;font-family:serif;touch-action:none;-webkit-overflow-scrolling:auto}canvas{width:100vw;height:100dvh;display:block;touch-action:none;user-select:none;-webkit-user-select:none}#ui{position:fixed;top:calc(14px + env(safe-area-inset-top));left:17px;text-shadow:0 2px 10px #000;font-size:12px;letter-spacing:.13em;pointer-events:none}#ui strong{font-size:21px;font-weight:normal;letter-spacing:.2em}#msg{position:fixed;bottom:175px;left:50%;transform:translateX(-50%);background:#071017ed;border:1px solid #b6aa8770;padding:14px 20px;text-align:center;font-size:14px;min-width:240px;max-width:85vw;opacity:0;transition:opacity .2s;pointer-events:none}#pad{position:fixed;left:14px;bottom:calc(38px + env(safe-area-inset-bottom));width:178px;height:178px;border-radius:50%;background:#cbd5d61a;border:1px solid #d8ddd977;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}#nub{position:absolute;left:67px;top:67px;width:44px;height:44px;border-radius:50%;background:#d0d7d58c;pointer-events:none}button{position:fixed;right:25px;bottom:calc(64px + env(safe-area-inset-bottom));width:76px;height:76px;border-radius:50%;background:#263b45cc;border:1px solid #ddd1b08c;color:#fff4dd;font-size:13px}#run{right:112px;bottom:calc(28px + env(safe-area-inset-bottom));width:58px;height:58px}@media(pointer:fine){#pad,button{opacity:.5}}</style></head><body>
-<canvas id="scene"></canvas><div id="ui"><strong>帰り灯</strong><br>KAERIBI — 夜の路地<br><small>レイヤーマップ / v2.1</small></div><div id="msg"></div><div id="pad"><div id="nub"></div></div>
+<canvas id="scene"></canvas><div id="ui"><strong>帰り灯</strong><br>KAERIBI — 夜の路地<br><small>レイヤーマップ / v2.2</small></div><div id="msg"></div><div id="pad"><div id="nub"></div></div>
 <script>
 const cv=document.getElementById('scene'),ctx=cv.getContext('2d');
 let W=innerWidth,H=innerHeight,D=1;
@@ -65,8 +65,17 @@ function character(){let x=player.x,y=player.y,bob=Math.sin(player.step)*2;ellip
 function frame(ts){const dt=Math.min((ts-last)/1000,.05);last=ts;time=ts;updateWorld(dt);let dx=joy.x,dy=joy.y;if(keys.has('ArrowLeft')||keys.has('KeyA'))dx--;if(keys.has('ArrowRight')||keys.has('KeyD'))dx++;if(keys.has('ArrowUp')||keys.has('KeyW'))dy--;if(keys.has('ArrowDown')||keys.has('KeyS'))dy++;let n=Math.hypot(dx,dy);if(n>.08){dx/=Math.max(1,n);dy/=Math.max(1,n);const sp=(joy.dash||keys.has('ShiftLeft')||keys.has('ShiftRight')?210:120)*dt;for(let k=0;k<Math.ceil(sp/3);k++){let d=sp/Math.ceil(sp/3);if(pass(player.x+dx*d,player.y))player.x+=dx*d;if(pass(player.x,player.y+dy*d))player.y+=dy*d}player.dir=Math.abs(dx)>Math.abs(dy)?dx>0?'right':'left':dy>0?'down':'up';player.step+=dt*11}
 ctx.setTransform(D,0,0,D,0,0);box(0,0,W,H,'#071019');const z=Math.max(W/1000,H/710);ctx.save();ctx.translate(W/2-player.x*z,H/2-player.y*z);ctx.scale(z,z);
 for(let j=0;j<ROWS;j++)for(let i=0;i<COLS;i++)tileDraw(i,j);
-for(const o of objects.filter(o=>o.type==='house'||o.type==='car'||o.type==='vending'||o.type==='fence'))drawObject(o);
-character();for(const o of objects.filter(o=>o.type==='tree'))drawObject(o);
+// Ground decals and dropped items must always be BELOW feet and standing objects.
+// Standing objects use their ground-contact Y (not their image top or array order).
+const groundObjects=objects.filter(o=>o.layer==='ground'||o.type==='item'||o.type==='decal');
+for(const o of groundObjects)drawObject(o);
+const depthActors=objects.filter(o=>!groundObjects.includes(o)).map(o=>({
+ depth:Number.isFinite(o.depthY)?o.depthY:o.y+o.h,
+ order:0,draw:()=>drawObject(o)
+}));
+depthActors.push({depth:player.y,order:1,draw:character});
+depthActors.sort((a,b)=>a.depth-b.depth||a.order-b.order);
+for(const actor of depthActors)actor.draw();
 for(const [x,y] of [[830,695],[1550,710],[940,1220]]){let g=ctx.createRadialGradient(x,y,3,x,y,260);g.addColorStop(0,'#e6b06a35');g.addColorStop(1,'#e6b06a00');box(x-260,y-260,520,520,g);ellipse(x,y,9,6,'#f5d18a')}
 ctx.restore();let g=ctx.createRadialGradient(W/2,H/2,50,W/2,H/2,Math.max(W,H)*.7);g.addColorStop(0,'#0000');g.addColorStop(1,'#000b');box(0,0,W,H,g);requestAnimationFrame(frame)}
 const pad=document.getElementById('pad'),nub=document.getElementById('nub');
