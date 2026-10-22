@@ -1,4 +1,4 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover"><title>帰り灯 KAERIBI — 夜の路地 (v0.3.1)</title><style>
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover"><title>帰り灯 KAERIBI — 夜の路地 (v0.4)</title><style>
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080d17;font-family:"Hiragino Kaku Gothic ProN",sans-serif;color:#f4e9d8}canvas{display:block;width:100vw;height:100dvh;touch-action:none}#top{position:fixed;top:env(safe-area-inset-top,12px);left:14px;pointer-events:none;text-shadow:0 2px 8px #000;font-size:13px;letter-spacing:.16em}#top b{font-size:18px;font-weight:400}#note{position:fixed;bottom:170px;left:50%;transform:translateX(-50%);background:#0b111bdc;border:1px solid #aaa08c66;border-radius:5px;padding:10px 18px;max-width:85vw;min-width:170px;text-align:center;font-size:13px;pointer-events:none;opacity:0;transition:opacity .25s}#stick{position:fixed;left:20px;bottom:calc(20px + env(safe-area-inset-bottom));width:132px;height:132px;border-radius:50%;background:#c2c4cb20;border:1px solid #cdd3db77;touch-action:none;user-select:none}#nub{position:absolute;left:39px;top:39px;width:52px;height:52px;border-radius:50%;background:#c9d3db80;border:2px solid #d5dce3a0;box-shadow:0 0 20px #0008;pointer-events:none}#act{position:fixed;right:24px;bottom:calc(47px + env(safe-area-inset-bottom));width:76px;height:76px;border-radius:50%;border:1px solid #ded5c5a0;background:#333f50a8;color:#f3e9d9;font-size:14px;touch-action:none}#run{position:fixed;right:115px;bottom:calc(30px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;border:1px solid #ded5c577;background:#333f5088;color:#f3e9d9;font-size:12px;touch-action:none}@media(pointer:fine){#stick,#act,#run{opacity:.32}} </style></head><body><canvas id="view"></canvas><div id="top"><b>帰り灯</b>　<small>KAERIBI / 夜の路地</small></div><div id="note"></div><div id="stick"><div id="nub"></div></div><button id="run">走る</button><button id="act">調べる</button><script>
 "use strict";
 const cv=document.getElementById('view'),ctx=cv.getContext('2d');let vw=0,vh=0,scale=1;function resize(){vw=innerWidth;vh=innerHeight;cv.width=Math.round(vw*devicePixelRatio);cv.height=Math.round(vh*devicePixelRatio);ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0)}addEventListener('resize',resize);resize();
@@ -31,21 +31,70 @@ tree(370,275,44);tree(845,278,47);tree(372,807,37);tree(855,803,39);
 for(let i=0;i<18;i++){let x=65+(i*79)%1190,y=i%2?780:280;ellipse(x,y,11,8,i%3?'#3a5448':'#49604c');ellipse(x+6,y-7,8,10,'#2f483e');fill(x-10,y+3,23,10,'#7a6e5d')}
 for(const [x,y] of [[430,315],[866,315],[425,785],[880,780]]){fill(x-4,y-95,8,105,'#3b4248');fill(x-14,y-101,28,9,'#d5b98a');ellipse(x,y+4,18,5,'#151c20aa');let glow=C.createRadialGradient(x,y-95,4,x,y-95,155);glow.addColorStop(0,'#ffe0a55e');glow.addColorStop(.45,'#e7b4771e');glow.addColorStop(1,'#e7b47700');fill(x-160,y-255,320,320,glow)}
 fill(1010,565,55,85,'#8b353b');fill(1016,572,43,43,'#c7c1a7');fill(1023,620,28,13,'#d7d0c0');fill(1020,655,12,8,'#1b242b');fill(1045,655,12,8,'#1b242b');
-for(let i=0;i<7;i++){let x=70+i*180;stroke(x,430,x+14,420,'#2c3635',2);stroke(x,682,x+10,687,'#2c3635',2)}
+for(let i=0;i<7;i++){let x=70+i*180;stroke(x,430,x+14,420,'#2c3635',2);stroke(x,682,x+10,687,'#2c3635',2)}detailLayer();
 }
+
+function detailLayer(){
+ const rr=rng(91527);
+ // Fine cracks, stains and scattered grit, deterministic across frames.
+ for(let i=0;i<190;i++){let x=rr()*W,y=rr()*H;if(y>305&&y<758){let len=4+rr()*27;stroke(x,y,x+len,y+(rr()-.5)*8,'#182b3040',.7);if(i%4===0)ellipse(x,y,1+rr()*3,.7,'#c2bba62a')}}
+ // Drains and utility covers embedded in the asphalt.
+ for(const [x,y] of [[245,384],[700,702],[1120,385],[490,522],[955,681]]){
+ ellipse(x+2,y+4,23,10,'#1c292db0');ellipse(x,y,21,9,'#657071');ellipse(x,y,17,6,'#3d4c51');
+ for(let k=-2;k<=2;k++)stroke(x-12,y+k*2,x+12,y+k*2,'#202d34',1.2);
+ }
+ // Road markings and weathered white edges.
+ for(let x=30;x<1280;x+=140){fill(x,529,53,2,'#b5b2a53c');fill(x+32,534,18,1,'#c5b8a331')}
+ for(let x=0;x<1300;x+=160){stroke(x,365,x+60,365,'#b3aa9360',2);stroke(x+18,720,x+85,720,'#aaa28c55',2)}
+ // House-front objects: planters, mailboxes, bicycles and meters.
+ for(const h of houses){
+ const y=h.y+h.h+4,x=h.x;
+ for(let k=0;k<3;k++){let px=x+27+k*43;fill(px-13,y-17,25,19,'#6c665e');fill(px-10,y-20,20,5,'#958b76');for(let j=0;j<5;j++)ellipse(px+(j-2)*4,y-25-(j%3)*7,7,8,j%2?'#334b3c':'#405847')}
+ fill(x+h.w-41,y-59,25,35,'#555d60');fill(x+h.w-38,y-56,19,24,'#a5a49a');stroke(x+h.w-36,y-43,x+h.w-23,y-43,'#4b5458',2);
+ // Ceramic wall light, warm spill on facade.
+ let lx=x+h.w*.47+30,ly=h.y+h.h-91;ellipse(lx,ly,9,5,'#e4bf81');let g=C.createRadialGradient(lx,ly,1,lx,ly,70);g.addColorStop(0,'#f3cc864d');g.addColorStop(1,'#f3cc8600');fill(lx-70,ly-70,140,140,g);
+ }
+ // Narrow railings and parked bikes on the far pavement.
+ for(const [x,y] of [[275,307],[675,306],[1090,308],[230,755],[730,758]]){
+ stroke(x-27,y,x+31,y,'#a1a49d',2);for(let k=-2;k<=2;k++)stroke(x+k*13,y-24,x+k*13,y,'#858c89',2);
+ }
+ for(const [x,y] of [[315,331],[1150,334],[650,733]]){
+ ellipse(x-18,y,12,12,'#1b272d');ellipse(x+19,y,12,12,'#1b272d');
+ C.beginPath();C.arc(x-18,y,11,0,Math.PI*2);C.arc(x+19,y,11,0,Math.PI*2);C.strokeStyle='#9aa19c';C.lineWidth=2;C.stroke();
+ stroke(x-18,y,x,y-20,'#a8aaa2',2);stroke(x,y-20,x+19,y,'#a8aaa2',2);stroke(x+19,y,x-18,y,'#8c9996',1.5);stroke(x-2,y-20,x+12,y-23,'#c4b8a0',2);
+ }
+ // Utility poles, cables and their shadows.
+ for(const [x,y] of [[170,317],[745,317],[1175,742]]){
+ ellipse(x+16,y+7,24,6,'#121e26a8');fill(x-5,y-97,10,102,'#414b50');fill(x-9,y-93,18,5,'#89908b');
+ stroke(x-19,y-78,x+21,y-78,'#7b8382',3);fill(x-15,y-84,5,13,'#b6b5a5');fill(x+10,y-84,5,13,'#b6b5a5');
+ }
+ C.beginPath();C.moveTo(170,238);C.bezierCurveTo(350,285,575,295,745,238);C.bezierCurveTo(920,275,1080,255,1175,646);C.strokeStyle='#202d34bb';C.lineWidth=2;C.stroke();
+}
+function atmosphere(now){
+ let pulse=.86+Math.sin(now*.0007)*.08;
+ // Warm lamplight blooms and pools of light on the pavement.
+ for(const [x,y] of [[430,315],[866,315],[425,785],[880,780]]){
+ let g=C.createRadialGradient(x,y,4,x,y,165);g.addColorStop(0,'rgba(255,207,133,'+(.19*pulse)+')');g.addColorStop(.35,'rgba(248,183,103,.075)');g.addColorStop(1,'rgba(248,183,103,0)');
+ C.fillStyle=g;C.fillRect(x-165,y-165,330,330);
+ ellipse(x,y+17,54,13,'#d7b17b13');
+ }
+ // Cold vapor hovering over the roadway.
+ for(let i=0;i<4;i++){let x=((i*360+now*.007)%(W+400))-200;let y=420+i*67;let g=C.createRadialGradient(x,y,0,x,y,190);g.addColorStop(0,'#a8bac30b');g.addColorStop(1,'#a8bac300');C.fillStyle=g;C.fillRect(x-190,y-190,380,380)}
+}
+
 function heroine(){const x=girl.x,y=girl.y;C.save();C.translate(x,y);let bob=Math.sin(girl.step)*2;ellipse(0,8,16,6,'#0a1118a0');C.translate(0,bob);
-const side=girl.face===1||girl.face===3;const back=girl.face===0;
-fill(-10,-13,8,20,'#292d39');fill(2,-13,8,20,'#292d39');fill(-13,-34,26,26,'#a89b93');fill(-17,-47,34,21,'#30313c');ellipse(0,-43,17,16,'#30313c');
+const side=girl.face===1||girl.face===3;const back=girl.face===0;let walking=girl.step!==0;let sway=walking?Math.sin(girl.step)*2:0;
+fill(-10+sway,-13,8,20,'#292d39');fill(2-sway,-13,8,20,'#292d39');fill(-13,-34,26,26,'#a89b93');fill(-17,-47,34,21,'#30313c');ellipse(0,-43,17,16,'#30313c');ellipse(-13,-30,5,16,'#292d38');ellipse(13,-30,5,16,'#292d38');stroke(-13,-47,13,-47,'#62616b',1);
 if(!back){ellipse(0,-36,12,12,'#e6cbb5');if(side){ellipse(girl.face===1?6:-6,-35,1.5,2,'#33333c')}else{ellipse(-5,-35,1.6,2,'#34343b');ellipse(5,-35,1.6,2,'#34343b')}}
-fill(-12,-21,24,24,'#eee0d0');poly([[-12,-17],[12,-17],[17,3],[-17,3]],'#a8a8b1');fill(-10,-20,20,6,'#f2e6d7');stroke(-9,-14,-13,0,'#e8d7c6',5);stroke(9,-14,13,0,'#e8d7c6',5);fill(-10,3,8,9,'#393c49');fill(3,3,8,9,'#393c49');C.restore()}
+fill(-12,-21,24,24,'#eee0d0');poly([[-12,-17],[12,-17],[17,3],[-17,3]],'#a8a8b1');fill(-10,-20,20,6,'#f2e6d7');poly([[-7,-18],[0,-13],[7,-18]],'#c4a9a4');fill(-3,-14,6,5,'#706c7a');stroke(-9,-14,-13,0,'#e8d7c6',5);stroke(9,-14,13,0,'#e8d7c6',5);fill(-10,3,8,9,'#393c49');fill(3,3,8,9,'#393c49');C.restore()}
 function show(msg){let e=document.getElementById('note');e.textContent=msg;e.style.opacity=1;noticeUntil=performance.now()+3200}
 function act(){const spots=[{x:1035,y:630,r:85,s:'自動販売機。冷たい光だけが残っている。'},{x:430,y:315,r:70,s:'街灯の下に、誰かが立っていたような気がした。'},{x:370,y:275,r:75,s:'植木の葉が、風もないのに揺れている。'}];let near=spots.find(p=>Math.hypot(girl.x-p.x,girl.y-p.y)<p.r);show(near?near.s:'静かだ。遠くで犬が一度だけ吠えた。')}
-function collision(x,y){if(x<30||x>W-30||y<315||y>742)return true;if((x>390&&x<462||x>820&&x<903)&&y<370)return false;return false}
+function collision(x,y){if(x<30||x>W-30||y<302||y>758)return true;if((x>390&&x<462||x>820&&x<903)&&y<370)return false;return false}
 let last=performance.now();function loop(now){let dt=Math.min((now-last)/16.67,2);last=now;t+=dt;let dx=joy.x,dy=joy.y;if(keys.has('ArrowLeft')||keys.has('KeyA'))dx--;if(keys.has('ArrowRight')||keys.has('KeyD'))dx++;if(keys.has('ArrowUp')||keys.has('KeyW'))dy--;if(keys.has('ArrowDown')||keys.has('KeyS'))dy++;let m=Math.hypot(dx,dy);if(m>.04){dx/=Math.max(1,m);dy/=Math.max(1,m);let sp=(run||keys.has('ShiftLeft')?3.1:1.75)*dt;let nx=girl.x+dx*sp,ny=girl.y+dy*sp;if(!collision(nx,girl.y))girl.x=nx;if(!collision(girl.x,ny))girl.y=ny;girl.face=Math.abs(dx)>Math.abs(dy)?dx>0?1:3:dy>0?2:0;girl.step+=dt*.22}else girl.step=0;
-camera.x+=(girl.x-camera.x)*.08;camera.y+=(girl.y-camera.y)*.08;C.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);fill(0,0,vw,vh,'#0a111a');let z=Math.max(vw/800,vh/500);C.save();C.translate(vw/2-camera.x*z,vh/2-camera.y*z);C.scale(z,z);street();heroine();C.restore();
+camera.x+=(girl.x-camera.x)*.08;camera.y+=(girl.y-camera.y)*.08;C.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);fill(0,0,vw,vh,'#0a111a');let z=Math.max(vw/800,vh/500);C.save();C.translate(vw/2-camera.x*z,vh/2-camera.y*z);C.scale(z,z);street();atmosphere(now);heroine();C.restore();
 let vign=C.createRadialGradient(vw/2,vh/2,Math.min(vw,vh)*.12,vw/2,vh/2,Math.max(vw,vh)*.72);vign.addColorStop(0,'#07101c18');vign.addColorStop(1,'#02060edc');fill(0,0,vw,vh,vign);
 if(now>noticeUntil)document.getElementById('note').style.opacity=0;requestAnimationFrame(loop)}
 const stick=document.getElementById('stick'),nub=document.getElementById('nub');function move(e){let r=stick.getBoundingClientRect(),x=(e.clientX-r.left-r.width/2)/44,y=(e.clientY-r.top-r.height/2)/44,m=Math.max(1,Math.hypot(x,y));joy.x=x/m;joy.y=y/m;nub.style.transform='translate('+(joy.x*38)+'px,'+(joy.y*38)+'px)'}stick.addEventListener('pointerdown',e=>{e.preventDefault();joy.id=e.pointerId;stick.setPointerCapture(e.pointerId);move(e)});stick.addEventListener('pointermove',e=>{if(joy.id===e.pointerId)move(e)});for(const ev of ['pointerup','pointercancel','lostpointercapture'])stick.addEventListener(ev,e=>{if(joy.id===e.pointerId){joy.id=null;joy.x=joy.y=0;nub.style.transform='translate(0,0)'}});
 document.getElementById('act').addEventListener('pointerdown',e=>{e.preventDefault();act()});const rb=document.getElementById('run');rb.addEventListener('pointerdown',e=>{e.preventDefault();run=true;rb.setPointerCapture(e.pointerId)});for(const ev of ['pointerup','pointercancel','lostpointercapture'])rb.addEventListener(ev,()=>run=false);
-addEventListener('keydown',e=>{keys.add(e.code);if(e.code==='KeyE'||e.code==='Space')act();if(e.code.startsWith('Arrow'))e.preventDefault()});addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',()=>{keys.clear();joy.x=joy.y=0;run=false});show('帰り道。誰もいない住宅街。');requestAnimationFrame(loop);
+addEventListener('keydown',e=>{keys.add(e.code);if(e.code==='KeyE'||e.code==='Space')act();if(e.code.startsWith('Arrow'))e.preventDefault()});addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',()=>{keys.clear();joy.x=joy.y=0;run=false});show('帰り道。街灯の下、夜だけが残っている。');requestAnimationFrame(loop);
 </script></body></html>
