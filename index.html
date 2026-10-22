@@ -1,6 +1,6 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>帰り灯 KAERIBI | レイヤーマップ v2.5</title><style>
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>帰り灯 KAERIBI | レイヤーマップ v2.6</title><style>
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;position:fixed;inset:0;background:#03090d;color:#e9dfce;overflow:hidden;overscroll-behavior:none;font-family:serif;touch-action:none;-webkit-overflow-scrolling:auto}canvas{width:100vw;height:100dvh;display:block;touch-action:none;user-select:none;-webkit-user-select:none}#ui{position:fixed;top:calc(14px + env(safe-area-inset-top));left:17px;text-shadow:0 2px 10px #000;font-size:12px;letter-spacing:.13em;pointer-events:none}#ui strong{font-size:21px;font-weight:normal;letter-spacing:.2em}#msg{position:fixed;bottom:175px;left:50%;transform:translateX(-50%);background:#071017ed;border:1px solid #b6aa8770;padding:14px 20px;text-align:center;font-size:14px;min-width:240px;max-width:85vw;opacity:0;transition:opacity .2s;pointer-events:none}#pad{position:fixed;left:14px;bottom:calc(38px + env(safe-area-inset-bottom));width:178px;height:178px;border-radius:50%;background:#cbd5d61a;border:1px solid #d8ddd977;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}#nub{position:absolute;left:67px;top:67px;width:44px;height:44px;border-radius:50%;background:#d0d7d58c;pointer-events:none}button{position:fixed;right:25px;bottom:calc(64px + env(safe-area-inset-bottom));width:76px;height:76px;border-radius:50%;background:#263b45cc;border:1px solid #ddd1b08c;color:#fff4dd;font-size:13px}#run{right:112px;bottom:calc(28px + env(safe-area-inset-bottom));width:58px;height:58px}@media(pointer:fine){#pad,button{opacity:.5}}</style></head><body>
-<canvas id="scene"></canvas><div id="ui"><strong>帰り灯</strong><br>KAERIBI — 夜の路地<br><small>レイヤーマップ / v2.5</small></div><div id="msg"></div><div id="pad"><div id="nub"></div></div>
+<canvas id="scene"></canvas><div id="ui"><strong>帰り灯</strong><br>KAERIBI — 夜の路地<br><small>レイヤーマップ / v2.6</small></div><div id="msg"></div><div id="pad"><div id="nub"></div></div>
 <script>
 const cv=document.getElementById('scene');let ctx=cv.getContext('2d');
 let W=innerWidth,H=innerHeight,D=1;
@@ -25,7 +25,14 @@ const objects=[
  {id:'fence_east',type:'fence',x:1470,y:125,w:24,h:390},
  {id:'tree_01',type:'tree',x:420,y:470,w:85,h:85},
  {id:'tree_02',type:'tree',x:1030,y:320,w:90,h:90},
- {id:'tree_03',type:'tree',x:1620,y:460,w:80,h:80}
+ {id:'tree_03',type:'tree',x:1620,y:460,w:80,h:80},
+ // Flat world details never join the Y-sorted sprite list.
+ {id:'drain_01',type:'decal',style:'drain',x:900,y:636,w:58,h:26,layer:'ground'},
+ {id:'manhole_01',type:'decal',style:'manhole',x:1310,y:795,w:55,h:35,layer:'ground'},
+ {id:'leaf_01',type:'decal',style:'leaves',x:680,y:678,w:48,h:21,layer:'ground'},
+ {id:'can_01',type:'item',style:'can',x:1022,y:748,w:13,h:10,layer:'ground'},
+ {id:'lamp_01',type:'lamp',x:996,y:592,w:17,h:102,depthY:694},
+ {id:'lamp_02',type:'lamp',x:1554,y:604,w:17,h:102,depthY:706}
 ];
 // World coordinates refer to a shared ground plane. Visual bounds, collision, and depth are separate.
 const objectById=new Map(objects.map(o=>[o.id,o]));
@@ -40,6 +47,7 @@ function setupObject(o){
  o.tags=o.tags||[];
  // Only the physical footprint blocks movement, never the whole sprite.
  const footprints={
+  lamp:{x:o.w*.3,y:o.h*.86,w:o.w*.4,h:o.h*.14},
   house:{x:0,y:0,w:o.w,h:o.h},
   tree:{x:o.w*.37,y:o.h*.68,w:o.w*.26,h:o.h*.32},
   fence:{x:0,y:0,w:o.w,h:o.h},
@@ -95,7 +103,15 @@ const screenCtx=ctx;ctx=groundCanvas.getContext('2d');
 for(let j=0;j<ROWS;j++)for(let i=0;i<COLS;i++)tileDraw(i,j);
 ctx=screenCtx;
 function drawHouse(o){const {x,y,w,h}=o;box(x+12,y+17,w,h,'#0b131a');box(x,y+30,w,h-30,'#4b4b47');for(let yy=y+40;yy<y+h;yy+=32){line(x+3,yy,x+w-3,yy,'#272c32',2);for(let xx=x+12;xx<x+w;xx+=52)line(xx,yy,xx-13,yy+31,'#30383d',1.4)}ctx.fillStyle='#202d39';ctx.beginPath();ctx.moveTo(x-24,y+48);ctx.lineTo(x+w/2,y-65);ctx.lineTo(x+w+24,y+48);ctx.closePath();ctx.fill();for(let a=0;a<14;a++){let yy=y-40+a*6;line(x+w/2-(a*18),yy,x+w/2+(a*18),yy,'#46515a55',1.5)}box(x+w*.18,y+h-65,45,52,'#b99c64');box(x+w*.18+5,y+h-60,35,42,'#ebba6480');box(x+w*.72,y+h-65,38,50,'#161c20');line(x+w*.72+19,y+h-65,x+w*.72+19,y+h-15,'#77756a',3)}
-function drawObject(o){if(!o.visible)return;const {x,y,w,h}=o;if(o.type==='house')return drawHouse(o);
+function drawObject(o){if(!o.visible)return;const {x,y,w,h}=o;
+if(o.renderMode==='ground'){
+ if(o.style==='manhole'){ellipse(x+w/2,y+h/2,w*.5,h*.5,'#0b1517');ellipse(x+w/2,y+h/2,w*.40,h*.37,'#424a48');ellipse(x+w/2,y+h/2,w*.32,h*.29,'#1b2528');for(let k=0;k<8;k++){let a=k*Math.PI/4;line(x+w/2+Math.cos(a)*w*.15,y+h/2+Math.sin(a)*h*.12,x+w/2+Math.cos(a)*w*.28,y+h/2+Math.sin(a)*h*.22,'#63706e',1.4)}}
+ else if(o.style==='drain'){box(x,y,w,h,'#151e20');for(let k=4;k<w;k+=7)line(x+k,y+3,x+k-2,y+h-3,'#677574',2)}
+ else if(o.style==='leaves'){for(let k=0;k<13;k++){let xx=x+rnd(k,x)*w,yy=y+rnd(k,y)*h;ellipse(xx,yy,2+rnd(k,y)*4,1.2+rnd(k,x)*2,['#756541','#857349','#4d573a'][k%3])}}
+ else if(o.style==='can'){ellipse(x+w/2,y+h/2,w*.58,h*.45,'#0a1113');box(x+2,y+1,w-4,h-3,'#69808a');line(x+3,y+3,x+w-3,y+3,'#c7d3c9',1)}
+ return;
+}
+if(o.type==='lamp'){ellipse(x+w/2,y+h-1,10,4,'#0009');line(x+w/2,y+h,x+w/2,y+8,'#555955',5);line(x+w/2,y+9,x+w/2+14,y+8,'#7d8175',3);ellipse(x+w/2+15,y+10,12,6,'#b89759');ellipse(x+w/2+15,y+12,8,3,'#f5d99b');return}if(o.type==='house')return drawHouse(o);
 if(o.type==='vending'){if(o.state==='fallen'||o.state==='falling'){ctx.save();ctx.translate(x+o.w/2,y+o.h-8);ctx.rotate(-Math.PI/2*Math.min(1,o.anim||1));ctx.translate(-(x+o.w/2),-(y+o.h-8))}box(x+5,y+8,w,h,'#121719');box(x,y,w,h-4,'#a63435');box(x+7,y+8,w-14,h*.48,'#b4d5d3');for(let a=0;a<12;a++)box(x+10+(a%4)*9,y+12+Math.floor(a/4)*10,5,8,['#e6a775','#93b0d2','#f1e2b5'][a%3]);box(x+7,y+h-24,w-14,13,'#aeb2aa');box(x+36,y+h-21,8,7,'#242d32');if(o.state==='fallen'||o.state==='falling')ctx.restore();return}
 if(o.type==='car'){ellipse(x+w/2,y+h-10,w*.58,25,'#0009');box(x+12,y+13,w-24,h-24,'#64665e');box(x+21,y+30,w-42,50,'#26323a');box(x+20,y+h-60,w-40,38,'#7c7a6c');box(x+5,y+30,13,32,'#1c2022');box(x+w-18,y+30,13,32,'#1c2022');box(x+18,y+h-16,21,7,'#a94b40');box(x+w-39,y+h-16,21,7,'#a94b40');return}
 if(o.type==='fence'){box(x,y,w,h,'#54544a');for(let k=10;k<h;k+=23)line(x,y+k,x+w,y+k,'#242c2e',3);return}
@@ -108,15 +124,37 @@ function pass(x,y){
  if(!probes.every(([tx,ty])=>groundedTerrain(tx,ty)))return false;
  return !objects.some(o=>touchesObject(o,foot));
 }
-function character(){let x=player.x,y=player.y,bob=Math.sin(player.step)*2;ellipse(x,y+1,14,5,'#0009');box(x-12,y-34+bob,24,30,'#8d5e5a');box(x-11,y-6+bob,9,8,'#313a46');box(x+2,y-6+bob,9,8,'#313a46');ellipse(x,y-38+bob,15,16,'#c5a69a');ellipse(x,y-49+bob,16,10,'#25232d');box(x-15,y-50+bob,30,7,'#292832')}
-function frame(ts){const dt=Math.min((ts-last)/1000,.05);last=ts;time=ts;updateWorld(dt);let dx=joy.x,dy=joy.y;if(keys.has('ArrowLeft')||keys.has('KeyA'))dx--;if(keys.has('ArrowRight')||keys.has('KeyD'))dx++;if(keys.has('ArrowUp')||keys.has('KeyW'))dy--;if(keys.has('ArrowDown')||keys.has('KeyS'))dy++;let n=Math.hypot(dx,dy);if(n>.08){dx/=Math.max(1,n);dy/=Math.max(1,n);const sp=(joy.dash||keys.has('ShiftLeft')||keys.has('ShiftRight')?210:120)*dt;const steps=Math.max(1,Math.ceil(sp/3));for(let k=0;k<steps;k++){let d=sp/steps;if(pass(player.x+dx*d,player.y))player.x+=dx*d;if(pass(player.x,player.y+dy*d))player.y+=dy*d}player.dir=Math.abs(dx)>Math.abs(dy)?dx>0?'right':'left':dy>0?'down':'up';player.step+=dt*11}
+function character(){const x=player.x,y=player.y;
+ const walk=player.moving?Math.sin(player.step):0,bob=player.moving?Math.abs(walk)*1.6:0;
+ ellipse(x,y+1,11,3.8,'#0008');
+ // The body and feet share an exact ground anchor.
+ const leg=walk*3.5;
+ ellipse(x-5+leg,y-5,4.5,3.2,'#222838');
+ ellipse(x+5-leg,y-5,4.5,3.2,'#222838');
+ ctx.save();ctx.translate(x,y-22-bob);
+ ctx.fillStyle='#714950';ctx.beginPath();ctx.moveTo(-10,-9);ctx.quadraticCurveTo(0,-15,10,-9);ctx.lineTo(13,9);ctx.quadraticCurveTo(0,15,-13,9);ctx.closePath();ctx.fill();
+ ctx.strokeStyle='#bd8a7e';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-8,1);ctx.lineTo(-12,9+walk*2);ctx.moveTo(8,1);ctx.lineTo(12,9-walk*2);ctx.stroke();
+ ctx.fillStyle='#d8b09d';ctx.beginPath();ctx.ellipse(0,-17,11.5,11,0,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#28242b';ctx.beginPath();ctx.moveTo(-12,-20);ctx.quadraticCurveTo(-14,-33,0,-32);ctx.quadraticCurveTo(15,-33,12,-20);ctx.quadraticCurveTo(0,-17,-12,-20);ctx.fill();
+ if(player.dir==='down'){box(-6,-15,2,1.4,'#3b2e35');box(4,-15,2,1.4,'#3b2e35')}
+ if(player.dir==='left'||player.dir==='right')ellipse(player.dir==='left'?-9:9,-14,2,2,'#e7bdad');
+ ctx.restore();
+}
+function frame(ts){const dt=Math.min((ts-last)/1000,.05);last=ts;time=ts;updateWorld(dt);let dx=joy.x,dy=joy.y;if(keys.has('ArrowLeft')||keys.has('KeyA'))dx--;if(keys.has('ArrowRight')||keys.has('KeyD'))dx++;if(keys.has('ArrowUp')||keys.has('KeyW'))dy--;if(keys.has('ArrowDown')||keys.has('KeyS'))dy++;let n=Math.hypot(dx,dy);if(n>.08){dx/=Math.max(1,n);dy/=Math.max(1,n);const sp=(joy.dash||keys.has('ShiftLeft')||keys.has('ShiftRight')?210:120)*dt;const steps=Math.max(1,Math.ceil(sp/3));for(let k=0;k<steps;k++){let d=sp/steps;if(pass(player.x+dx*d,player.y))player.x+=dx*d;if(pass(player.x,player.y+dy*d))player.y+=dy*d}player.dir=Math.abs(dx)>Math.abs(dy)?dx>0?'right':'left':dy>0?'down':'up';player.step+=dt*11;player.moving=true}else player.moving=false
 ctx.setTransform(D,0,0,D,0,0);box(0,0,W,H,'#071019');const z=Math.max(W/1000,H/710);const camX=Math.max(W/(2*z),Math.min(MW-W/(2*z),player.x)),camY=Math.max(H/(2*z),Math.min(MH-H/(2*z),player.y));ctx.save();ctx.translate(W/2-camX*z,H/2-camY*z);ctx.scale(z,z);
 ctx.drawImage(groundCanvas,0,0);
+for(const lamp of objects.filter(o=>o.type==='lamp'&&o.visible)){
+ const x=lamp.x+lamp.w/2+15,y=lamp.y+lamp.h+18;
+ const glow=ctx.createRadialGradient(x,y,2,x,y,210);
+ glow.addColorStop(0,'#f0c47a59');glow.addColorStop(.25,'#d1a5632d');glow.addColorStop(1,'#d1a56300');
+ box(x-210,y-210,420,420,glow);
+}
 // Ground decals and dropped items must always be BELOW feet and standing objects.
 // Standing objects use their ground-contact Y (not their image top or array order).
-const groundObjects=objects.filter(o=>o.layer==='ground'||o.type==='item'||o.type==='decal');
+const groundObjects=objects.filter(o=>o.visible&&o.renderMode==='ground');
+const standingObjects=objects.filter(o=>o.visible&&o.renderMode==='depth');
 for(const o of groundObjects)drawObject(o);
-const depthActors=objects.filter(o=>o.visible&&!groundObjects.includes(o)).map(o=>({
+const depthActors=standingObjects.map(o=>({
  depth:o.type==='vending'&&o.state==='fallen'?o.y+o.h:o.depthY,order:0,draw:()=>drawObject(o)
 }));
 depthActors.push({depth:player.y,order:1,draw:character});
@@ -125,7 +163,8 @@ for(const actor of depthActors)actor.draw();
 if(debugCollision){ctx.save();for(let j=0;j<ROWS;j++)for(let i=0;i<COLS;i++){ctx.strokeStyle=tiles[j][i]?'#35d89755':'#c34d4d44';ctx.lineWidth=1;ctx.strokeRect(i*TILE,j*TILE,TILE,TILE)}
 for(const o of objects){if(!o.collidable)continue;const b=objectBounds(o);ctx.fillStyle='#ef58563a';ctx.fillRect(b.x,b.y,b.w,b.h);ctx.strokeStyle='#ff9c84';ctx.strokeRect(b.x,b.y,b.w,b.h)}
 let f=playerFeet(player.x,player.y);ctx.strokeStyle='#55ffff';ctx.lineWidth=2;ctx.strokeRect(f.x,f.y,f.w,f.h);ctx.restore()}
-for(const [x,y] of [[830,695],[1550,710],[940,1220]]){let g=ctx.createRadialGradient(x,y,3,x,y,260);g.addColorStop(0,'#e6b06a35');g.addColorStop(1,'#e6b06a00');box(x-260,y-260,520,520,g);ellipse(x,y,9,6,'#f5d18a')}
+// Environmental light is on the ground; it never draws a solid disc above a character.
+
 ctx.restore();let g=ctx.createRadialGradient(W/2,H/2,50,W/2,H/2,Math.max(W,H)*.7);g.addColorStop(0,'#0000');g.addColorStop(1,'#000b');box(0,0,W,H,g);requestAnimationFrame(frame)}
 const pad=document.getElementById('pad'),nub=document.getElementById('nub');
 const zone=document.createElement('div');zone.style.cssText='position:fixed;left:0;bottom:0;width:65vw;height:45dvh;z-index:8;touch-action:none;overscroll-behavior:none';document.body.appendChild(zone);pad.style.pointerEvents='none';pad.style.zIndex='9';
