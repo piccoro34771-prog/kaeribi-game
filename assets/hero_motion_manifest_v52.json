@@ -1,0 +1,122 @@
+{
+  "version": "5.2",
+  "title": "帰り灯 — winter heroine motion manifest",
+  "sourceImages": {
+    "locomotion": "assets/motion_atlases_v51.js → KAERIBI_MOTION_SHEETS.walk",
+    "action": "assets/motion_atlases_v51.js → KAERIBI_MOTION_SHEETS.action"
+  },
+  "frame": {
+    "width": 136,
+    "height": 164,
+    "feetAnchor": [
+      68,
+      162
+    ],
+    "renderWidth": 80,
+    "renderHeight": 96,
+    "lighting": "neutral; dynamic only",
+    "shadow": "drawn separately"
+  },
+  "rows": {
+    "down": 0,
+    "left": 1,
+    "right": 2,
+    "up": 3
+  },
+  "clips": {
+    "idle": {
+      "sheet": "walk",
+      "frames": [
+        0
+      ],
+      "timing": "hold"
+    },
+    "idle_shift": {
+      "sheet": "walk",
+      "frames": [
+        0,
+        1,
+        0
+      ],
+      "durationSeconds": 0.45,
+      "activation": "8 seconds idle, every 15 seconds"
+    },
+    "start": {
+      "sheet": "walk",
+      "frames": [
+        0,
+        1,
+        2
+      ],
+      "durationSeconds": 0.15
+    },
+    "walk": {
+      "sheet": "walk",
+      "frames": [
+        0,
+        2,
+        1,
+        3,
+        0,
+        4,
+        1,
+        5
+      ],
+      "distancePerLoopWorldPx": 69
+    },
+    "run": {
+      "sheet": "walk",
+      "frames": [
+        0,
+        2,
+        1,
+        3,
+        0,
+        4,
+        1,
+        5
+      ],
+      "distancePerLoopWorldPx": 83
+    },
+    "stop": {
+      "sheet": "walk",
+      "frames": [
+        2,
+        1,
+        0
+      ],
+      "durationSeconds": 0.16
+    },
+    "inspect": {
+      "sheet": "action",
+      "frames": [
+        0,
+        1,
+        2,
+        1,
+        0
+      ],
+      "timelineFractions": [
+        0,
+        0.14,
+        0.3,
+        0.74,
+        0.9,
+        1
+      ]
+    }
+  },
+  "rules": {
+    "advanceOnActualTravel": true,
+    "collisionHysteresisSeconds": 0.105,
+    "zeroTravelNoGaitAdvance": true,
+    "directionSource": "actual movement",
+    "noFloatingBody": "anchor all frames to foot location",
+    "noSpecialEffectMarks": true
+  },
+  "occlusion": {
+    "masks": "roofMasks in game_v5.js",
+    "source": "original winter scene pixels",
+    "buildingsCollidable": true
+  }
+}
