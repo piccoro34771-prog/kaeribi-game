@@ -6,12 +6,12 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101a23;col
 #ui{position:fixed;inset:0;pointer-events:none}#title{position:absolute;top:max(18px,env(safe-area-inset-top));left:20px;text-shadow:0 2px 12px #101824;font-size:14px;letter-spacing:.14em}#title small{display:block;font-size:10px;opacity:.66;letter-spacing:.08em;margin-top:7px}
 #pad{position:absolute;left:23px;bottom:max(32px,env(safe-area-inset-bottom));height:154px;width:154px;border:1px solid #ffffff40;border-radius:50%;background:#b6caee13;pointer-events:auto;touch-action:none}
 #nub{position:absolute;left:50%;top:50%;width:64px;height:64px;background:#dae7fd45;border:1px solid #fff8;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 20px #0005}
-#dash{position:absolute;bottom:max(54px,env(safe-area-inset-bottom));right:29px;width:88px;height:88px;border:1px solid #ffffff7d;border-radius:50%;background:#bac8df2c;color:white;pointer-events:auto;touch-action:none;font:600 13px system-ui}
+
 #notice{position:absolute;bottom:max(205px,env(safe-area-inset-bottom) + 170px);left:20px;right:20px;text-align:center;font-size:11px;opacity:.7}
 #fail{display:none;position:absolute;inset:20% 12%;align-content:center;text-align:center;background:#172337ef;padding:20px;pointer-events:auto;line-height:1.8}
-@media(min-width:850px){#pad,#dash{opacity:.25}#notice{bottom:25px}}
+@media(min-width:850px){#pad{opacity:.4}#notice{bottom:25px}}
 </style></head><body>
-<div id="ui"><div id="title">帰り灯 <small>基礎検証 01 — 主人公のデザイン変更なし</small></div><div id="pad"><div id="nub"></div></div><button id="dash" type="button">走る</button><div id="notice">建物・塀・鉢・自販機に接触して確認 ／ PC：矢印キー・WASD・Shift</div><div id="fail">ゲームエンジンを読み込めませんでした。ネットワーク接続を確認し、再読み込みしてください。</div></div>
+<div id="ui"><div id="title">帰り灯 <small>基礎検証 01 — 主人公のデザイン変更なし</small></div><div id="pad"><div id="nub"></div></div><div id="notice">スティックを少し倒すとゆっくり歩き、大きく倒すと速く移動 ／ PC：矢印キー・WASD</div><div id="fail">ゲームエンジンを読み込めませんでした。ネットワーク接続を確認し、再読み込みしてください。</div></div>
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
 <script>
 (()=>{'use strict';
@@ -30,15 +30,14 @@ const layout=[
  {id:'car',kind:'car',x:195,y:288,w:170,h:105,solid:true}
 ];
 const palette={snow:0xb7c7c7,road:0x3a4650,wall:0x788188,roof:0x3b5966,red:0x915f63,edge:0x929da0};
-let padVector={x:0,y:0},dashHeld=false,gameScene;
-const pad=document.getElementById('pad'),nub=document.getElementById('nub'),dash=document.getElementById('dash');
+let padVector={x:0,y:0},gameScene;
+const pad=document.getElementById('pad'),nub=document.getElementById('nub');
 function padUpdate(e){const r=pad.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let x=(e.clientX-cx)/61,y=(e.clientY-cy)/61;const m=Math.hypot(x,y);if(m>1){x/=m;y/=m}padVector={x,y};nub.style.transform='translate(calc(-50% + '+Math.round(x*55)+'px),calc(-50% + '+Math.round(y*55)+'px))'}
 pad.addEventListener('pointerdown',e=>{pad.setPointerCapture(e.pointerId);padUpdate(e)});
 pad.addEventListener('pointermove',e=>{if(pad.hasPointerCapture(e.pointerId))padUpdate(e)});
 function padReset(){padVector={x:0,y:0};nub.style.transform='translate(-50%,-50%)'}
 pad.addEventListener('pointerup',padReset);pad.addEventListener('pointercancel',padReset);pad.addEventListener('lostpointercapture',padReset);
-dash.addEventListener('pointerdown',e=>{dash.setPointerCapture(e.pointerId);dashHeld=true});
-for(const ev of ['pointerup','pointercancel','lostpointercapture'])dash.addEventListener(ev,()=>{dashHeld=false});
+
 function rect(g,x,y,w,h,color,alpha=1){g.fillStyle(color,alpha);g.fillRect(x,y,w,h)}
 function line(g,x1,y1,x2,y2,c=0xcdd7d4,a=.4,width=2){g.lineStyle(width,c,a);g.beginPath();g.moveTo(x1,y1);g.lineTo(x2,y2);g.strokePath()}
 function ground(scene){
@@ -135,22 +134,35 @@ class Prototype extends Phaser.Scene{
    this.sprite=this.add.text(672,699,'?',{fontSize:'26px',color:'#fafafa'}).setOrigin(.5);
   }
   this.cameras.main.setBounds(0,0,W,H);this.cameras.main.startFollow(this.actor,true,.075,.075);this.cameras.main.setZoom(Math.min(1.04,Math.max(.63,Math.min(innerWidth/650,innerHeight/760))));
-  this.cursor=this.input.keyboard.createCursorKeys();this.wasd=this.input.keyboard.addKeys('W,A,S,D,SHIFT');
-  this.lastX=this.actor.x;this.lastY=this.actor.y;this.travel=0;this.facing=0;this.step=0;
+  this.cursor=this.input.keyboard.createCursorKeys();this.wasd=this.input.keyboard.addKeys('W,A,S,D');
+  this.lastX=this.actor.x;this.lastY=this.actor.y;this.travel=0;this.facing=0;this.facing16=4;this.step=0;this.lastMoving=false;
   // Inspection hooks exposed for deterministic geometry tests.
-  window.KAERIBI_PROBE={version:'prototype-01-motion-02',layout,hero:'../assets/hero_winter.webp',movement:{walk:154,dash:228,strideFrames:[0,1,0,2],pixelsPerFrame:21},
-   snapshot:()=>({x:this.actor.x,y:this.actor.y,travel:this.travel,colliderCount:this.blockers.getChildren().length}),
+  window.KAERIBI_PROBE={version:'prototype-01-motion-03',layout,hero:'../assets/hero_winter.webp',movement:{slow:72,full:228,deadZone:.14,headingSectors:16,visualDirections:4,strideFrames:[0,1,0,2],pixelsPerFrame:21},
+   snapshot:()=>({x:this.actor.x,y:this.actor.y,travel:this.travel,facing16:this.facing16,visualFacing:this.facing,colliderCount:this.blockers.getChildren().length}),
    overlaps:(x,y,w=22,h=14)=>layout.filter(o=>o.solid&&x+w/2>o.x&&x-w/2<o.x+o.w&&y+h/2>o.y&&y-h/2<o.y+o.h).map(o=>o.id)};
  }
  update(_time,delta){
+  // The full stick is now the default fast movement. A small deflection is a slow walk.
+  // Aim is free analog 360 degrees, recorded in 16 directional sectors.
   let x=padVector.x,y=padVector.y;
-  if(this.cursor.left.isDown||this.wasd.A.isDown)x-=1;if(this.cursor.right.isDown||this.wasd.D.isDown)x+=1;
-  if(this.cursor.up.isDown||this.wasd.W.isDown)y-=1;if(this.cursor.down.isDown||this.wasd.S.isDown)y+=1;
+  const keyboardX=(this.cursor.right.isDown||this.wasd.D.isDown?1:0)-(this.cursor.left.isDown||this.wasd.A.isDown?1:0);
+  const keyboardY=(this.cursor.down.isDown||this.wasd.S.isDown?1:0)-(this.cursor.up.isDown||this.wasd.W.isDown?1:0);
+  if(keyboardX||keyboardY){x=keyboardX;y=keyboardY}
   const mag=Math.hypot(x,y);
-  if(mag>1){x/=mag;y/=mag}
-  const speed=(dashHeld||this.cursor.shift.isDown||this.wasd.SHIFT.isDown)?228:154;
+  const inputStrength=Math.min(1,mag);
+  const deadZone=.14;
+  const amount=mag>deadZone?Math.pow((inputStrength-deadZone)/(1-deadZone),.72):0;
+  if(mag>0){x/=mag;y/=mag}
+  const speed=amount>0?72+156*amount:0;
   this.actor.body.setVelocity(x*speed,y*speed);
-  if(mag>.2){if(Math.abs(x)>Math.abs(y))this.facing=x<0?2:3;else this.facing=y<0?1:0}
+  if(amount>0){
+   const angle=(Math.atan2(y,x)+2*Math.PI)%(2*Math.PI);
+   this.facing16=Math.round(angle/(Math.PI/8))%16;
+   // Current locked character artwork only has four painted facing directions.
+   // A 16-direction movement heading is retained for future approved sprite expansion.
+   const sector=this.facing16;
+   this.facing=sector>=2&&sector<=6?0:sector>=7&&sector<=9?2:sector>=10&&sector<=14?1:3;
+  }
   const distance=Math.hypot(this.actor.x-this.lastX,this.actor.y-this.lastY);
   this.travel+=distance;this.lastX=this.actor.x;this.lastY=this.actor.y;
   this.groundShadow.setPosition(this.actor.x,this.actor.y+6);
