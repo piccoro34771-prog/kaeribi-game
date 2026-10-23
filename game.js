@@ -8,18 +8,23 @@ function imageReady(key){return artwork[key]&&artwork[key].complete&&artwork[key
 const TILE=64,COLS=32,ROWS=24,MW=COLS*TILE,MH=ROWS*TILE;
 const tiles=Array.from({length:ROWS},()=>Array(COLS).fill(0)); // 0 = blocked garden, 1 = asphalt, 2 = driveway
 function paint(x,y,w,h,t){for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)if(tiles[j]?.[i]!==undefined)tiles[j][i]=t}
-paint(0,10,32,5,1);paint(12,0,5,24,1);paint(23,0,4,24,1);paint(1,3,7,7,2);paint(18,4,5,6,2);paint(17,16,6,7,2);
+paint(0,10,32,5,1);paint(12,0,5,24,1);paint(23,0,4,24,1);
+// Parking bays and driveways connect directly to the street.
+// The old western parking area overlapped the house and looked like an impassable lawn.
+paint(1,6,7,4,2);paint(18,4,5,6,2);paint(17,16,6,7,2);
+// Narrow open approach between pavement and the west/east parking aprons.
+paint(2,9,6,1,2);paint(18,9,5,1,2);paint(17,15,6,2,2);
 // Each scene object has a persistent ID, independent collision and event state.
 const objects=[
- {id:'home_nw',type:'house',x:65,y:60,w:390,h:320},
+ {id:'home_nw',type:'house',x:65,y:60,w:390,h:285},
  {id:'home_north',type:'house',x:520,y:35,w:215,h:425},
- {id:'home_ne',type:'house',x:1110,y:70,w:320,h:410},
+ {id:'home_ne',type:'house',x:1110,y:70,w:320,h:180},
  {id:'home_far_east',type:'house',x:1730,y:85,w:280,h:420},
  {id:'home_sw',type:'house',x:55,y:1010,w:560,h:490},
- {id:'home_south',type:'house',x:1080,y:1050,w:330,h:450},
+ {id:'home_south',type:'house',x:1100,y:1200,w:310,h:300},
  {id:'home_se',type:'house',x:1770,y:1040,w:260,h:450},
  {id:'vending_01',type:'vending',x:820,y:554,w:52,h:77,state:'upright',event:'vending_fall',collidable:true},
- {id:'car_park_01',type:'car',x:155,y:270,w:125,h:190},
+ {id:'car_park_01',type:'car',x:155,y:388,w:125,h:190},
  {id:'car_park_02',type:'car',x:1190,y:340,w:125,h:185},
  {id:'fence_west',type:'fence',x:740,y:130,w:22,h:380},
  {id:'fence_east',type:'fence',x:1470,y:125,w:24,h:390},
@@ -51,8 +56,8 @@ function setupObject(o){
   house:{x:0,y:0,w:o.w,h:o.h},
   tree:{x:o.w*.37,y:o.h*.68,w:o.w*.26,h:o.h*.32},
   fence:{x:0,y:0,w:o.w,h:o.h},
-  vending:{x:0,y:o.h*.62,w:o.w,h:o.h*.38},
-  car:{x:o.w*.08,y:o.h*.12,w:o.w*.84,h:o.h*.8}
+  vending:{x:-5,y:0,w:o.w+10,h:o.h+3},
+  car:{x:o.w*.06,y:o.h*.03,w:o.w*.88,h:o.h*.94}
  };
  o.collider=o.collider||footprints[o.type]||{x:0,y:0,w:o.w,h:o.h};
  return o;
@@ -245,7 +250,14 @@ function sceneChecks(){
   ['upright vending depth sorted',isStandingRenderable(objectById.get('vending_01'))],
   ['ground items have no collision',objects.filter(o=>o.renderMode==='ground').every(o=>!o.collidable)],
   ['player start reachable',pass(player.x,player.y)],
-  ['houses block walking',!pass(65+390/2,60+320/2)]
+  ['houses block walking',!pass(65+390/2,60+285/2)],
+  ['west parking entrance walkable',pass(300,619)],
+  ['west parking paved area walkable',pass(350,500)],
+  ['east parking entrance walkable',pass(1400,619)],
+  ['east parking paved area walkable',pass(1380,350)],
+  ['vending machine top blocked',!pass(844,572)],
+  ['parked car collision blocked',!pass(210,480)],
+  ['road nearby vending walkable',pass(903,681)]
  ];
 }
 if(new URLSearchParams(location.search).has('test')){
