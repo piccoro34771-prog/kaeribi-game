@@ -13,6 +13,11 @@
   // The compressed WebP is carried in a plain-text asset for reliable Pages deployment.
   fetch('assets/scene_winter_v5.b64.txt?v=500').then(r=>{if(!r.ok)throw Error('Scene HTTP '+r.status);return r.text()}).then(base64=>{scene.src='data:image/webp;base64,'+base64.trim()}).catch(e=>{ui.status.textContent='背景を読み込めませんでした。再読み込みしてください。';console.error(e)});
   const hero = new Image(); hero.src='assets/hero_winter.webp?v=400';
+  // Sprite atlases are separate neutral-light drawings with fixed foot registration.
+  // They may load after the scene: the previous hero drawing remains a fallback.
+  const motionSprites=window.KAERIBI_MOTION_SHEETS||{};
+  const motionWalk=new Image(); if(motionSprites.walk)motionWalk.src=motionSprites.walk;
+  const motionAction=new Image(); if(motionSprites.action)motionAction.src=motionSprites.action;
   let W=0,H=0,D=1,z=1,clock=0,last=0,ready=false,ended=false;
   const keys = new Set();
   const startX=626,startY=704;
@@ -22,6 +27,8 @@
   const DEBUG=new URLSearchParams(location.search).has('debug');
   const story={vending:false,car:false,lamp:false,finish:false};
   let dialogUntil=0,footprint=0,breath=0,shadowT=0,shake=0;
+  // Every pose has a painted in-between; elapsed time controls START/STOP/INSPECT transitions.
+  const anim={state:'idle',elapsed:0,walkDistance:0,idleAge:0,action:null,wasMoving:false,dashing:false};
   const map = {
     areas:[
       [[107,72],[178,75],[241,146],[326,241],[414,343],[517,455],[636,568],[725,641],[655,731],[581,657],[494,554],[399,447],[310,348],[228,264],[170,191],[104,131]],
@@ -89,7 +96,9 @@
   }
   function interact(){
     if(ended)return;
-    const e=availableEvent();if(!e)return;
+    const e=availableEvent();if(!e||anim.action)return;
+    anim.action={kind:e.id==='vending'?'kneel':e.id==='car'?'lean':'look',time:0,duration:e.id==='vending'?1.55:1.05};
+    anim.state='idle';anim.elapsed=0;player.moving=false;
     if(e.id==='vending'){
       story.vending=true;
       show('自販機の下に、濡れた小さな足跡。雪がないところまで続いている。',6000);
@@ -154,9 +163,20 @@
     if(keys.has('KeyW')||keys.has('ArrowUp'))dy--;
     if(keys.has('KeyS')||keys.has('ArrowDown'))dy++;
     const m=Math.hypot(dx,dy);
-    if(m<.055||ended){player.moving=false;return}
+    // Let a physical examination complete before walking again. The player can interrupt
+    // during the recovery frames, but will never teleport from a crouch to a stride.
+    if(anim.action){
+      if(m>.24&&anim.action.time>anim.action.duration*.7){
+        anim.action=null;anim.state='starting';anim.elapsed=0;
+      }else{player.moving=false;return}
+    }
+    if(m<.055||ended){
+      if(anim.wasMoving){anim.state='stopping';anim.elapsed=0}
+      player.moving=false;anim.wasMoving=false;return;
+    }
     dx/=Math.max(1,m);dy/=Math.max(1,m);
-    const speed=(stick.dash||keys.has('ShiftLeft')||keys.has('ShiftRight'))?185:112;
+    const dashing=stick.dash||keys.has('ShiftLeft')||keys.has('ShiftRight');
+    const speed=dashing?185:112;
     const amount=speed*dt;let mx=0,my=0;
     const steps=Math.max(1,Math.ceil(amount/3));
     for(let k=0;k<steps;k++){
@@ -164,11 +184,31 @@
       if(canStand(player.x+sx,player.y)){player.x+=sx;mx+=sx}
       if(canStand(player.x,player.y+sy)){player.y+=sy;my+=sy}
     }
-    player.moving=Math.hypot(mx,my)>.01;
+    const actuallyMoved=Math.hypot(mx,my);
+    player.moving=actuallyMoved>.01;
     if(player.moving){
+      if(!anim.wasMoving){anim.state='starting';anim.elapsed=0}
+      else if(anim.state==='stopping'){anim.state='starting';anim.elapsed=0}
+      else if(anim.state==='starting'&&anim.elapsed>.18)anim.state='moving';
       player.dir=Math.abs(mx)>Math.abs(my)?mx<0?'left':'right':my<0?'up':'down';
-      player.step+=dt*((speed===185)?14.5:9.5);breath+=dt;
+      // Animation speed derives from actual footsteps travelled, not frame count or FPS.
+      anim.walkDistance+=actuallyMoved;
+      anim.idleAge=0;anim.dashing=dashing;
+      breath+=dt;
+    }else if(anim.wasMoving){anim.state='stopping';anim.elapsed=0}
+    anim.wasMoving=player.moving;
+  }
+  function updateAnimation(dt){
+    anim.elapsed+=dt;
+    if(anim.action){anim.action.time+=dt;
+      if(anim.action.time>=anim.action.duration){anim.action=null;anim.state='idle';anim.elapsed=0;anim.idleAge=0}
+      return;
     }
+    if(!player.moving){
+      anim.idleAge+=dt;
+      if(anim.state==='stopping'&&anim.elapsed>=.18){anim.state='idle';anim.elapsed=0}
+    }
+    if(player.moving&&anim.state==='starting'&&anim.elapsed>=.18){anim.state='moving';anim.elapsed=0}
   }
   function radial(x,y,r,inner,outer){
     const g=ctx.createRadialGradient(x,y,1,x,y,r);g.addColorStop(0,inner);g.addColorStop(1,outer);
@@ -204,19 +244,43 @@
   function drawHero(t){
     const x=player.x,y=player.y;
     ctx.fillStyle='rgba(1,7,16,.30)';ctx.beginPath();ctx.ellipse(x,y+1,18,6,0,0,Math.PI*2);ctx.fill();
-    if(!hero.complete||!hero.naturalWidth){
-      ctx.fillStyle='#8b554a';ctx.beginPath();ctx.arc(x,y-36,17,0,Math.PI*2);ctx.fill();return;
-    }
-    // The sprite sheet faces down / up / left / right by column, idle / step / step by row.
-    const col=player.dir==='down'?0:player.dir==='up'?1:player.dir==='left'?2:3;
-    const row=player.moving?1+(Math.floor(player.step/Math.PI*1.1)%2):0;
-    const sw=hero.naturalWidth/4,sh=hero.naturalHeight/3;
-    const bob=player.moving?Math.abs(Math.sin(player.step))*.8:0;
-    ctx.drawImage(hero,col*sw,row*sh,sw,sh,x-38,y-82-bob,76,83);
-    // Breath is emitted in winter air, not a second hard-coded sprite light source.
-    if(player.moving&&breath>1.9){
-      breath=0;
-      special.add('breath');
+    if(motionWalk.complete&&motionWalk.naturalWidth){
+      const row=player.dir==='down'?0:player.dir==='left'?1:player.dir==='right'?2:3;
+      const Wf=136,Hf=164;
+      let tex=motionWalk,frame=0;
+      if(anim.action&&motionAction.complete&&motionAction.naturalWidth){
+        tex=motionAction;
+        const phase=anim.action.time/anim.action.duration;
+        if(anim.action.kind==='kneel')frame=phase<.16?1:phase<.30?2:phase<.72?2:phase<.87?1:3;
+        else frame=phase<.2?0:phase<.7?1:3;
+      }else if(player.moving){
+        if(anim.state==='starting')frame=anim.elapsed<.08?1:2;
+        else{
+          const stride=anim.dashing?12.0:15.5;
+          // Eight original illustrations in a seamless stride cycle.
+          const frames=[2,3,4,5,6,5,4,3];
+          frame=frames[Math.floor(anim.walkDistance/stride)%frames.length];
+        }
+      }else if(anim.state==='stopping'){
+        frame=anim.elapsed<.09?2:1;
+      }else if(anim.idleAge>6.5){
+        // Rare weight shifts and glances have no emotion-symbol overlays.
+        const rest=(anim.idleAge-6.5)%12;
+        frame=rest<.35?1:rest<.75?7:0;
+      }
+      const bob=player.moving?.28*Math.sin(anim.walkDistance/9):0;
+      // Feet are locked to (x,y) independently of portrait frame and pose height.
+      const sheetCols=tex===motionWalk?8:4;
+      frame=Math.max(0,Math.min(sheetCols-1,frame));
+      const dstW=80,dstH=96;
+      ctx.drawImage(tex,frame*Wf,row*Hf,Wf,Hf,x-dstW/2,y-dstH+bob,dstW,dstH);
+    }else if(hero.complete&&hero.naturalWidth){
+      const col=player.dir==='down'?0:player.dir==='up'?1:player.dir==='left'?2:3;
+      const row=player.moving?1+(Math.floor(player.step/Math.PI*1.1)%2):0;
+      const sw=hero.naturalWidth/4,sh=hero.naturalHeight/3;
+      ctx.drawImage(hero,col*sw,row*sh,sw,sh,x-38,y-82,76,83);
+    }else{
+      ctx.fillStyle='#8b554a';ctx.beginPath();ctx.arc(x,y-36,17,0,Math.PI*2);ctx.fill();
     }
   }
   function drawShadow(t){
@@ -237,7 +301,7 @@
     if(!ready)return;
     let dt=Math.min((t-last)/1000||.016,.042);last=t;clock=t;
     if(t>dialogUntil)ui.dialog.classList.remove('visible');
-    movePlayer(dt);
+    movePlayer(dt);updateAnimation(dt);
     const ev=availableEvent();
     ui.prompt.textContent=ev?ev.label:'';
     ui.act.classList.toggle('visible',!!ev);
@@ -279,6 +343,6 @@
     roadwayWalkable:canStand(615,701),
     world:WORLD,
     player:{x:Math.round(player.x),y:Math.round(player.y),dir:player.dir},
-    story:{...story}
+    story:{...story},animation:{state:anim.state,action:anim.action?.kind||null,walkFrames:motionWalk.complete&&motionWalk.naturalWidth>0,actionFrames:motionAction.complete&&motionAction.naturalWidth>0}
   });
 })();
