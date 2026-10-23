@@ -125,7 +125,7 @@ class Motor{
  get state(){return {x:this.x,y:this.y,vx:this.vx,vy:this.vy,heading:this.heading,dir16:this.dir16,actualSpeed:this.actualSpeed,moved:this.movedLast,totalDistance:this.totalDistance,blockedX:this.blockedX,blockedY:this.blockedY}}
 }
 class Gait{
- constructor(){this.state='idle';this.phase=0;this.travel=0;this.clip='idle';this.frame=0;this.timer=0;this.blend=0;this.smoothSpeed=0;this.lastFrame=0;}
+ constructor(){this.state='idle';this.phase=0;this.travel=0;this.clip='idle';this.frame=0;this.timer=0;this.blend=0;this.smoothSpeed=0;this.lastFrame=0;this.mode='creep';}
  tick(dt, moved){
    const actualSpeed=dt>0?moved/dt:0;
    this.smoothSpeed+= (actualSpeed-this.smoothSpeed)*(1-Math.exp(-dt*14));
@@ -135,17 +135,21 @@ class Gait{
      if(this.state==='idle'||this.state==='stop'){this.state='start';this.timer=0;}
      this.timer+=dt;
      if(this.state==='start'&&this.timer>.085){this.state='walk';this.timer=0}
-     const stride=65+clamp(this.smoothSpeed/228,0,1)*23;
+     // A visible push-off cadence; keep phase tied to measured world displacement.
+     const stride=62+clamp(this.smoothSpeed/228,0,1)*14;
      this.phase=(this.phase+moved/stride)%1;
      this.travel+=moved;
    }else{
      if(this.state==='walk'||this.state==='start'){this.state='stop';this.timer=0;this.lastFrame=this.frame;}
      this.timer+=dt;
-     if(this.state==='stop'&&this.timer>.085){this.state='idle';this.timer=0;this.phase=0;}
+     if(this.state==='stop'&&this.timer>.055){this.state='idle';this.timer=0;this.phase=0;}
    }
-   this.clip=this.state==='idle'?'idle':this.smoothSpeed<115?'creep':'walk';
+   // Hysteresis prevents flicker between slow/fast clips while thumb pressure varies.
+   if(this.mode==='creep'&&this.smoothSpeed>131)this.mode='walk';
+   else if(this.mode==='walk'&&this.smoothSpeed<95)this.mode='creep';
+   this.clip=this.state==='idle'?'idle':this.mode;
    this.frame=this.state==='idle'?0:Math.floor(this.phase*16)%16;
-   this.blend=this.state==='start'?clamp(this.timer/.085,0,1):this.state==='stop'?clamp(1-this.timer/.085,0,1):this.state==='idle'?0:1;
+   this.blend=this.state==='idle'?0:1;
  }
  get stateObject(){return {state:this.state,phase:this.phase,frame:this.frame,clip:this.clip,blend:this.blend,smoothSpeed:this.smoothSpeed,travel:this.travel}}
 }
@@ -185,6 +189,9 @@ const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 const rnd=x=>{const a=Math.sin(x*128.47+18.37)*43758.5453;return a-Math.floor(a)};
 const player=new Motor(T,T.start.x,T.start.y);
 const locomotion=new Gait();
+// Interpolated visual position is separate from the authoritative collision foot.
+const visual={x:player.x,y:player.y};
+let previousPhysics={x:player.x,y:player.y};
 let stick={x:0,y:0},touchId=null,poseTestFrozen=false;
 
 // World-heading atlases are prealigned by make_world_atlases.py.
@@ -328,8 +335,8 @@ function drawClip(c,clip,frame,sector,alpha=1){
  const artDirection=idleMap[sector];
  const sx=desc.layout==='row'?artDirection*FRAME_W:Math.floor(frame)%desc.frames*FRAME_W;
  const sy=desc.layout==='row'?0:artDirection*FRAME_H;
- const dx=player.x-DRAW_W*.5;
- const dy=player.y-DRAW_H*(FOOT_Y/FRAME_H);
+ const dx=visual.x-DRAW_W*.5;
+ const dy=visual.y-DRAW_H*(FOOT_Y/FRAME_H);
  c.save();c.globalAlpha=alpha;
  c.drawImage(image,sx,sy,FRAME_W,FRAME_H,dx,dy,DRAW_W,DRAW_H);
  c.restore();
@@ -338,18 +345,14 @@ function sprite(c){
  if(!ready)return;
  const a=locomotion.stateObject;
  // No large fake drop shadow: the painted boots themselves are anchored to y≈ground.
- ellipse(c,player.x,player.y+0.6,10.5,1.6,'#03070b85');
+ ellipse(c,visual.x,visual.y+1.5,9.0,1.8,'#03070b92');
  if(a.state==='idle'){
   drawClip(c,'idle',0,player.dir16);
  }else if(a.state==='stop'){
-  // A short, coherent return from the existing planted-foot pose to idle.
-  // Head pixels are invariant between those poses, so no face double image.
-  drawClip(c,'idle',0,player.dir16);
-  drawClip(c,a.clip,a.frame,player.dir16,a.blend*.83);
- }else if(a.state==='start'){
-  drawClip(c,'idle',0,player.dir16);
-  drawClip(c,a.clip,a.frame,player.dir16,Math.max(.1,a.blend));
+  // Hold the final foot contact briefly, then switch to still. Never overlay two figures.
+  drawClip(c,a.clip,locomotion.lastFrame,player.dir16);
  }else{
+  // Start and locomotion use one full-body clip; the locked face and torso stay intact.
   drawClip(c,a.clip,a.frame,player.dir16);
  }
 }
@@ -358,15 +361,15 @@ function drawWorld(){
  const drawables=T.items.map(o=>({y:o.baseY,draw:()=>drawObject(g,o)}));
  const house=T.items.find(o=>o.id==='house');
  drawables.push({y:house.baseY,draw:()=>drawRoof(g,house)});
- drawables.push({y:player.y,draw:()=>sprite(g)});
+ drawables.push({y:visual.y,draw:()=>sprite(g)});
  drawables.sort((a,b)=>a.y-b.y);
  for(const d of drawables)d.draw();
  if(DEBUG){
   g.lineWidth=1.6;g.strokeStyle='#fe717195';
   for(const o of T.items){const r=o.body;g.strokeRect(r.x,r.y,r.w,r.h)}
-  g.strokeStyle='#ffe29a';g.beginPath();g.ellipse(player.x,player.y,player.rx,player.ry,0,0,Math.PI*2);g.stroke();
+  g.strokeStyle='#ffe29a';g.beginPath();g.ellipse(visual.x,visual.y,player.rx,player.ry,0,0,Math.PI*2);g.stroke();
  }
- const v=g.createRadialGradient(player.x,player.y,170,player.x,player.y,670);
+ const v=g.createRadialGradient(visual.x,visual.y,170,visual.x,visual.y,670);
  v.addColorStop(0,'#00000000');v.addColorStop(1,'#050b15a5');fillRect(g,0,0,T.W,T.H,v);
 }
 function resize(){
@@ -405,14 +408,19 @@ function inputVector(){
 // Fixed-step clock independent of screen refresh rate (30/60/120 Hz).
 const STEP=1/120;let last=performance.now(),accumulator=0,statusAge=0;
 function logicTick(dt){
- if(poseTestFrozen)return;
+ if(poseTestFrozen){previousPhysics={x:player.x,y:player.y};return;}
+ previousPhysics={x:player.x,y:player.y};
  const moved=player.tick(dt,inputVector());
  locomotion.tick(dt,moved);
 }
 function drawFrame(dt,t){
+ // Render between the last two 120 Hz physics snapshots: consistent at 30/60/120 Hz.
+ const a=clamp(accumulator/STEP,0,1);
+ visual.x=previousPhysics.x+(player.x-previousPhysics.x)*a;
+ visual.y=previousPhysics.y+(player.y-previousPhysics.y)*a;
  const visW=Math.min(T.W,view.w/camera.zoom),visH=Math.min(T.H,view.h/camera.zoom);
- const targetX=clamp(player.x,visW/2,T.W-visW/2);
- const targetY=clamp(player.y,visH/2,T.H-visH/2);
+ const targetX=clamp(visual.x,visW/2,T.W-visW/2);
+ const targetY=clamp(visual.y,visH/2,T.H-visH/2);
  const smoothing=1-Math.exp(-dt*8.5);
  camera.x+=(targetX-camera.x)*smoothing;
  camera.y+=(targetY-camera.y)*smoothing;
@@ -438,7 +446,7 @@ requestAnimationFrame(frame);
 window.KAERIBI_TEST={
  version:'1.4',get state(){return {...player.state,ready,zoom:camera.zoom,anim:locomotion.stateObject,pressed:[...pressed] }},
  get map(){return T},get clips(){return CLIPS},
- setPlayer(x,y){return player.setPosition(x,y)},
+ setPlayer(x,y){const ok=player.setPosition(x,y);if(ok){previousPhysics={x:player.x,y:player.y};visual.x=player.x;visual.y=player.y;}return ok},
  setStick(x,y){poseTestFrozen=false;stick={x,y}},
  release(){releaseInputs()},
  setPose(dir16,phase=0,mode='walk'){
