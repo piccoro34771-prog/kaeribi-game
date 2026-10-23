@@ -125,6 +125,29 @@ function tileDraw(i,j){
 const groundCanvas=document.createElement('canvas');groundCanvas.width=MW;groundCanvas.height=MH;
 const screenCtx=ctx;ctx=groundCanvas.getContext('2d');
 for(let j=0;j<ROWS;j++)for(let i=0;i<COLS;i++)tileDraw(i,j);
+// Long irregular seams cross tiles seamlessly; asphalt is not a square grid.
+ctx.save();ctx.lineCap='round';
+for(let a=0;a<75;a++){
+ let xx=rnd(a,11)*MW,yy=rnd(a,29)*MH;
+ if(!groundedTerrain(xx,yy))continue;
+ let length=18+rnd(a,31)*72,theta=(rnd(a,40)-.5)*2.5;
+ ctx.beginPath();ctx.moveTo(xx,yy);
+ for(let k=1;k<=4;k++)ctx.lineTo(xx+Math.cos(theta)*length*k/4+(rnd(a,k)-.5)*8,yy+Math.sin(theta)*length*k/4+(rnd(k,a)-.5)*6);
+ ctx.strokeStyle=a%4?'#151f2370':'#a1a49620';ctx.lineWidth=a%4?1.4:2.2;ctx.stroke();
+}
+// Paint parking stall lines ONLY on accessible parking material.
+const parking=[{x:99,y:390,w:350,h:225},{x:1160,y:270,w:256,h:365},{x:1102,y:1061,w:335,h:305}];
+for(const lot of parking){
+ ctx.strokeStyle='#ded7af65';ctx.lineWidth=3;
+ for(let px=lot.x+12;px<lot.x+lot.w-10;px+=Math.min(126,lot.w/3)){
+  if(groundedTerrain(px,lot.y+50)){ctx.beginPath();ctx.moveTo(px,lot.y+48);ctx.lineTo(px,lot.y+lot.h-10);ctx.stroke()}
+ }
+}
+// Small pools of accumulated rain and faded wheel marks.
+for(let a=0;a<15;a++){let xx=rnd(a,100)*MW,yy=rnd(a,101)*MH;if(!groundedTerrain(xx,yy))continue;
+ ellipse(xx,yy,14+rnd(a,105)*31,3+rnd(a,106)*5,'#94a9a310');
+ line(xx-16,yy-1,xx+8,yy-2,'#a3b5aa15',1)}
+ctx.restore();
 ctx=screenCtx;
 function drawHouse(o){
  const {x,y,w,h}=o;const roofTop=y+44,foot=y+h;
@@ -145,6 +168,23 @@ function drawHouse(o){
  box(x+w*.72,foot-70,43,61,'#121d22');
  box(x+w*.72+4,foot-65,34,50,'#222e30');
  line(x+w*.72+22,foot-65,x+w*.72+22,foot-12,'#80857b',2);
+ // Architectural details: meter boxes, AC unit, rainwater pipe and numbered post.
+ const acX=x+w*.48,acY=foot-64;
+ box(acX+4,acY+6,61,50,'#111c21a8');box(acX,acY,61,44,'#92968a');box(acX+5,acY+5,50,32,'#5b6b6b');
+ for(let a=0;a<7;a++)line(acX+10,acY+8+a*4,acX+51,acY+8+a*4,'#202e34',2);
+ ellipse(acX+30,acY+21,15,12,'#1b292ed0');
+ for(let a=0;a<5;a++){let ang=a*Math.PI*2/5;line(acX+30,acY+21,acX+30+Math.cos(ang)*12,acY+21+Math.sin(ang)*10,'#82938d90',2)}
+ box(acX+12,acY+43,6,9,'#434f50');box(acX+46,acY+43,6,9,'#434f50');
+ const pipeX=x+w-23;line(pipeX,roofTop+24,pipeX,foot-8,'#9c9e916b',7);
+ line(pipeX+3,roofTop+25,pipeX+3,foot-11,'#252f33',2);
+ const postX=x+Math.max(10,w*.1);box(postX,foot-40,30,32,'#27343a');
+ box(postX+3,foot-37,24,6,'#959f98');box(postX+4,foot-26,21,12,'#17282b');
+ line(postX+7,foot-23,postX+17,foot-23,'#6e8585',1);
+ // Moss stains and paint discoloration soften the flat facade.
+ for(let q=0;q<14;q++){
+  const tx=x+12+rnd(q,w)*Math.max(10,w-40),ty=roofTop+25+rnd(q,h)*(Math.max(15,h-105));
+  ellipse(tx,ty,3+rnd(q,x)*12,2+rnd(q,y)*5,q%2?'#17383119':'#d5c7a00c');
+ }
  // Roof is a separate visual shape; its physical boundary remains the building footprint.
  const roof=ctx.createLinearGradient(x,y-80,x,roofTop+30);
  roof.addColorStop(0,'#273846');roof.addColorStop(.4,'#293943');roof.addColorStop(1,'#121e28');
@@ -230,6 +270,14 @@ for(const lamp of objects.filter(o=>o.type==='lamp'&&o.visible)){
  const glow=ctx.createRadialGradient(x,y,2,x,y,210);
  glow.addColorStop(0,'#f0c47a59');glow.addColorStop(.25,'#d1a5632d');glow.addColorStop(1,'#d1a56300');
  box(x-210,y-210,420,420,glow);
+}
+// Vending illumination and house windows light the pavement, rather than floating atop the player.
+const machine=objectById.get('vending_01');
+if(machine&&machine.visible&&machine.state==='upright'){
+ const mx=machine.x+machine.w/2,my=machine.y+machine.h+9;
+ const gl=ctx.createRadialGradient(mx,my,3,mx,my,132);
+ gl.addColorStop(0,'#a8e7f04a');gl.addColorStop(.42,'#6698b224');gl.addColorStop(1,'#527c9e00');
+ box(mx-132,my-132,264,264,gl);
 }
 // Ground decals and dropped items must always be BELOW feet and standing objects.
 // Standing objects use their ground-contact Y (not their image top or array order).
