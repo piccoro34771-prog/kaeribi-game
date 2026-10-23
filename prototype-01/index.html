@@ -138,7 +138,7 @@ class Prototype extends Phaser.Scene{
   this.cursor=this.input.keyboard.createCursorKeys();this.wasd=this.input.keyboard.addKeys('W,A,S,D,SHIFT');
   this.lastX=this.actor.x;this.lastY=this.actor.y;this.travel=0;this.facing=0;this.step=0;
   // Inspection hooks exposed for deterministic geometry tests.
-  window.KAERIBI_PROBE={version:'prototype-01',layout,hero:'../assets/hero_winter.webp',
+  window.KAERIBI_PROBE={version:'prototype-01-motion-02',layout,hero:'../assets/hero_winter.webp',movement:{walk:154,dash:228,strideFrames:[0,1,0,2],pixelsPerFrame:21},
    snapshot:()=>({x:this.actor.x,y:this.actor.y,travel:this.travel,colliderCount:this.blockers.getChildren().length}),
    overlaps:(x,y,w=22,h=14)=>layout.filter(o=>o.solid&&x+w/2>o.x&&x-w/2<o.x+o.w&&y+h/2>o.y&&y-h/2<o.y+o.h).map(o=>o.id)};
  }
@@ -148,7 +148,7 @@ class Prototype extends Phaser.Scene{
   if(this.cursor.up.isDown||this.wasd.W.isDown)y-=1;if(this.cursor.down.isDown||this.wasd.S.isDown)y+=1;
   const mag=Math.hypot(x,y);
   if(mag>1){x/=mag;y/=mag}
-  const speed=(dashHeld||this.cursor.shift.isDown||this.wasd.SHIFT.isDown)?186:116;
+  const speed=(dashHeld||this.cursor.shift.isDown||this.wasd.SHIFT.isDown)?228:154;
   this.actor.body.setVelocity(x*speed,y*speed);
   if(mag>.2){if(Math.abs(x)>Math.abs(y))this.facing=x<0?2:3;else this.facing=y<0?1:0}
   const distance=Math.hypot(this.actor.x-this.lastX,this.actor.y-this.lastY);
@@ -157,7 +157,12 @@ class Prototype extends Phaser.Scene{
   this.sprite.setPosition(this.actor.x,this.actor.y+6).setDepth(this.actor.y+2);
   if(this.sprite instanceof Phaser.GameObjects.Sprite){
    // Source frames belong to the SAME approved sprite sheet; never swap characters.
-   const phaseIndex=distance>.12?Math.floor(this.travel/21)%3:0;
+   // The original master sheet contains 3 pose rows: neutral, left-step, right-step.
+   // Insert a neutral leg-passing pose between the two planted-foot poses.
+   // Animate from real world-distance, not wall-blocked input time.
+   // 4 poses / 84 world pixels = 2 steps per stride (42px per planted step).
+   const stride=[0,1,0,2];
+   const phaseIndex=distance>.12?stride[Math.floor(this.travel/21)%4]:0;
    this.sprite.setFrame(this.facing+phaseIndex*4);
   }
  }
