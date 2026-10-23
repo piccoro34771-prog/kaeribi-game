@@ -46,6 +46,11 @@
     ctx.drawImage(im,src[0],src[1],src[2],src[3],o.x-17,bottom-destH,destW,destH);
   };
 
+  // Collision bounds follow the painted silhouettes, not the old SVG proxies.
+  for(const o of objects){
+    if(o.type==='vending'){o.collider={x:-12,y:-10,w:o.w+24,h:o.h+29};o.depthY=o.y+o.h+13}
+    if(o.type==='car'){o.collider={x:-5,y:-5,w:o.w+10,h:o.h+10};o.depthY=o.y+o.h+8}
+  }
   const originalDrawObject=drawObject;
   drawObject=function(o){
     if(o.type==='house')return drawHouse(o);
@@ -73,9 +78,9 @@
   // Physical objects, plants and snowy pavement are independent of the painting's transparent extent.
   // All additions are set back from the free passage between the parking bays and the road.
   const winterDecor=[
-    {id:'winter_mail_w',type:'winterprop',part:'post',x:480,y:496,w:66,h:79,collidable:false},
-    {id:'winter_notice',type:'winterprop',part:'board',x:650,y:492,w:105,h:107,collidable:false},
-    {id:'winter_ac',type:'winterprop',part:'ac',x:1590,y:492,w:88,h:86,collidable:false},
+    {id:'winter_mail_w',type:'winterprop',part:'post',x:480,y:496,w:66,h:79,collidable:true,collider:{x:8,y:51,w:46,h:28}},
+    {id:'winter_notice',type:'winterprop',part:'board',x:650,y:492,w:105,h:107,collidable:true,collider:{x:5,y:78,w:95,h:29}},
+    {id:'winter_ac',type:'winterprop',part:'ac',x:1740,y:492,w:88,h:86,collidable:true,collider:{x:3,y:56,w:82,h:29}},
     {id:'winter_pots',type:'winterprop',part:'pots',x:535,y:531,w:106,h:69,collidable:false},
     {id:'winter_bicycle',type:'winterprop',part:'bike',x:365,y:504,w:130,h:92,collidable:true,collider:{x:10,y:56,w:110,h:32}},
     {id:'winter_cone',type:'winterprop',part:'cone',x:1340,y:580,w:31,h:43,collidable:true,collider:{x:2,y:30,w:27,h:13}},
