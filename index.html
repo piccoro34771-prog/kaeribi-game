@@ -25,7 +25,7 @@ canvas{position:fixed;inset:0;display:block;width:100%;height:100%;touch-action:
 .action{position:fixed;right:23px;bottom:calc(56px + env(safe-area-inset-bottom));min-height:75px;min-width:75px;padding:12px 16px;border-radius:45px;background:#142633d9;color:#fff1d8;border:1px solid #d8c39d86;font-family:inherit;font-size:12px;line-height:1.6;letter-spacing:.08em;z-index:14;touch-action:manipulation;cursor:pointer}
 #act{opacity:0;pointer-events:none;transition:opacity .18s}
 #act.visible{opacity:1;pointer-events:auto}
-#prompt{position:fixed;right:20px;bottom:calc(143px + env(safe-area-inset-bottom));width:145px;min-height:15px;text-align:center;font-size:11px;text-shadow:0 2px 9px #000;color:#f2e8d5;pointer-events:none;z-index:14}
+#prompt{position:fixed;right:20px;bottom:calc(215px + env(safe-area-inset-bottom));width:145px;min-height:15px;text-align:center;font-size:11px;text-shadow:0 2px 9px #000;color:#f2e8d5;pointer-events:none;z-index:14}
 #light{bottom:calc(148px + env(safe-area-inset-bottom));width:48px;height:48px;min-height:48px;min-width:48px;padding:0;border-radius:50%;font-size:20px;color:#aabdc7;border-color:#82909a66;background:#102230aa}
 #light.on{border-color:#dfc78f;color:#ffe5a8;box-shadow:0 0 24px #edca7c66}
 #help{position:fixed;right:20px;top:calc(env(safe-area-inset-top) + 22px);color:#d2d6d1a8;font-family:system-ui,sans-serif;font-size:10px;letter-spacing:.07em;text-shadow:0 2px 9px #000;pointer-events:none;text-align:right}
@@ -45,7 +45,7 @@ body.debug #help{color:#e9cc75}
 <body>
 <canvas id="scene" aria-label="冬の住宅街を歩く探索ゲーム"></canvas>
 <div id="hud"><h1>帰り灯</h1><p>KAERIBI　/　第一夜・雪の街角</p><div id="progress"></div><div id="caption"></div></div>
-<div id="help">歩く　左スティック / WASD<br>走る　外周 / Shift<br>調べる　近づいてタップ / E</div>
+<div id="help">歩く　左スティック / WASD<br>走る　外周 / Shift<br>調べる　近づいてタップ / E<br>懐中電灯　◈ / F</div>
 <div id="dialog" role="status" aria-live="polite"></div>
 <div id="zone" aria-label="移動スティックの操作領域"></div><div id="pad"><div id="nub"></div></div>
 <div id="prompt"></div><button id="act" class="action" type="button">調べる</button><button id="light" class="action" aria-label="懐中電灯を切り替える" aria-pressed="false" type="button">◈</button>
