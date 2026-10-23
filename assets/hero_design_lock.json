@@ -1,0 +1,22 @@
+{
+  "character_id": "kaeribi_protagonist_01",
+  "status": "LOCKED",
+  "master_asset": "assets/hero_winter.webp",
+  "master_git_blob_sha": "44fe19316fedf52e009511a666105550d1d8a9a5",
+  "appearance": {
+    "silhouette": "small chibi girl",
+    "hair": "dark bob",
+    "scarf": "burgundy red",
+    "clothes": "winter coat and boots",
+    "expression": "neutral, understated",
+    "lighting": "neutral, no fixed-direction highlights"
+  },
+  "hard_rules": [
+    "Use master artwork unchanged in engine migration proof of concept.",
+    "Do not regenerate, redesign, swap hairstyle, scarf, coat, body proportions or face.",
+    "All new animation frames must be derived from and visually matched to the approved master.",
+    "Use separate scene lighting; do not bake flashlight/streetlight direction into the character.",
+    "Never replace the master without explicit user approval."
+  ],
+  "test_policy": "During engine migration test, reuse exact existing sprite and keep legacy v6 playable. Prioritize collision/occlusion/controls over replacement character art."
+}
