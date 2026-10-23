@@ -61,6 +61,15 @@ Object.freeze(town.items);Object.freeze(town.surfaces);window.KAERIBI_TOWN=town;
 (function(root){'use strict';
 const PI2=Math.PI*2, SECTOR=PI2/16;
 const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+const REST_FRAMES={
+  // The two visually closest calm-foot poses for each heading, measured from the
+  // actual art on a neutral background. Allows stop to settle before the idle switch.
+  walk:[[4,12],[7,8],[0,15],[0,15],[0,15],[0,8],[0,15],[5,14],
+        [4,12],[4,13],[4,12],[5,11],[0,8],[0,8],[3,12],[5,13]],
+  creep:[[4,13],[7,8],[0,15],[0,15],[0,15],[0,8],[0,15],[5,13],
+         [4,13],[4,13],[4,12],[5,11],[0,8],[0,8],[3,12],[6,13]]
+};
+
 const radDiff=(a,b)=>Math.atan2(Math.sin(a-b),Math.cos(a-b));
 function analogVector(x,y){
   let length=Math.hypot(x,y);
@@ -125,33 +134,80 @@ class Motor{
  get state(){return {x:this.x,y:this.y,vx:this.vx,vy:this.vy,heading:this.heading,dir16:this.dir16,actualSpeed:this.actualSpeed,moved:this.movedLast,totalDistance:this.totalDistance,blockedX:this.blockedX,blockedY:this.blockedY}}
 }
 class Gait{
- constructor(){this.state='idle';this.phase=0;this.travel=0;this.clip='idle';this.frame=0;this.timer=0;this.blend=0;this.smoothSpeed=0;this.lastFrame=0;this.mode='creep';}
- tick(dt, moved){
+ constructor(){
+   this.facing16=4;
+   this.state='idle';this.phase=0;this.travel=0;this.clip='idle';this.frame=0;
+   this.timer=0;this.blend=0;this.smoothSpeed=0;this.lastFrame=0;
+   this.mode='creep';this.pendingMode=null;this.stopClip='creep';
+   this.stopStart=0;this.stopDelta=0;this.settleDuration=.125;
+ }
+ tick(dt,moved,heading16=this.facing16){
+   this.facing16=((heading16%16)+16)%16;
    const actualSpeed=dt>0?moved/dt:0;
-   this.smoothSpeed+= (actualSpeed-this.smoothSpeed)*(1-Math.exp(-dt*14));
-   // Entire animation is driven by real displacement, not user pressing a wall.
-   const moving=moved>Math.max(.007,dt*3.5);
-   if(moving){
-     if(this.state==='idle'||this.state==='stop'){this.state='start';this.timer=0;}
+   this.smoothSpeed+=(actualSpeed-this.smoothSpeed)*(1-Math.exp(-dt*14));
+   // Even barely moving feet count: otherwise light-stick movement slides in idle.
+   const active=moved>1e-7;
+   if(active){
+     if(this.state==='idle'||this.state==='stop'){
+       // New motion resumes actual ground-distance phase, not a stale stopping pose.
+       if(this.state==='idle')this.phase=0;
+       this.state='start';this.timer=0;
+     }
      this.timer+=dt;
-     if(this.state==='start'&&this.timer>.085){this.state='walk';this.timer=0}
-     // A visible push-off cadence; keep phase tied to measured world displacement.
+     if(this.state==='start'&&this.timer>=.065){this.state='walk';this.timer=0;}
+     const desired=this.mode==='creep'?(this.smoothSpeed>138?'walk':null):
+                 (this.smoothSpeed<92?'creep':null);
+     if(desired)this.pendingMode=desired;
+     else if(this.pendingMode&&((this.mode==='creep'&&this.smoothSpeed<=138)||
+                               (this.mode==='walk'&&this.smoothSpeed>=92)))this.pendingMode=null;
+     // Changing between source atlases mid-stride can move boots abruptly. The
+     // plant/passing moments (0 and 0.5) are the stable clip-swap boundaries.
      const stride=62+clamp(this.smoothSpeed/228,0,1)*14;
+     const previous=this.phase;
      this.phase=(this.phase+moved/stride)%1;
+     if(this.pendingMode){
+       const crossed=(Math.floor(previous*2)!==Math.floor(this.phase*2))||
+                     this.phase<previous||this.state==='start';
+       if(crossed){this.mode=this.pendingMode;this.pendingMode=null;}
+     }
      this.travel+=moved;
+     this.frame=Math.floor(this.phase*16)%16;
+     this.clip=this.mode;
    }else{
-     if(this.state==='walk'||this.state==='start'){this.state='stop';this.timer=0;this.lastFrame=this.frame;}
-     this.timer+=dt;
-     if(this.state==='stop'&&this.timer>.055){this.state='idle';this.timer=0;this.phase=0;}
+     if(this.state==='walk'||this.state==='start'){
+       this.state='stop';this.timer=0;
+       this.stopClip=this.clip;
+       this.stopStart=this.phase;
+       // Nearest calm pose (0 or half-cycle). This only finishes the step once,
+       // without standing still and looping the walking animation.
+       const nearest=REST_FRAMES[this.stopClip]||REST_FRAMES.walk;
+       const pair=nearest[this.facing16];
+       let best=Infinity,delta=0;
+       for(const ix of pair){
+         let d=ix/16-this.phase;
+         if(d>.5)d-=1;
+         if(d<-.5)d+=1;
+         if(Math.abs(d)<best){best=Math.abs(d);delta=d;}
+       }
+       this.stopDelta=delta;
+       this.lastFrame=this.frame;
+     }
+     if(this.state==='stop'){
+       this.timer+=dt;
+       const u=clamp(this.timer/this.settleDuration,0,1);
+       const eased=u*u*(3-2*u);
+       this.phase=((this.stopStart+this.stopDelta*eased)%1+1)%1;
+       this.frame=Math.floor(this.phase*16+.00001)%16;
+       this.clip=this.stopClip;
+       if(u>=1){this.state='idle';this.timer=0;this.phase=0;this.frame=0;this.clip='idle';}
+     }else{
+       this.state='idle';this.phase=0;this.frame=0;this.clip='idle';
+     }
    }
-   // Hysteresis prevents flicker between slow/fast clips while thumb pressure varies.
-   if(this.mode==='creep'&&this.smoothSpeed>131)this.mode='walk';
-   else if(this.mode==='walk'&&this.smoothSpeed<95)this.mode='creep';
-   this.clip=this.state==='idle'?'idle':this.mode;
-   this.frame=this.state==='idle'?0:Math.floor(this.phase*16)%16;
    this.blend=this.state==='idle'?0:1;
  }
- get stateObject(){return {state:this.state,phase:this.phase,frame:this.frame,clip:this.clip,blend:this.blend,smoothSpeed:this.smoothSpeed,travel:this.travel}}
+ get stateObject(){return {state:this.state,phase:this.phase,frame:this.frame,clip:this.clip,
+   blend:this.blend,smoothSpeed:this.smoothSpeed,travel:this.travel,stopProgress:this.state==='stop'?clamp(this.timer/this.settleDuration,0,1):null,heading16:this.facing16};}
 }
 const API={Motor,Gait,analogVector,normalizeHeading,radDiff};
 if(typeof module!=='undefined'&&module.exports)module.exports=API;
@@ -349,8 +405,8 @@ function sprite(c){
  if(a.state==='idle'){
   drawClip(c,'idle',0,player.dir16);
  }else if(a.state==='stop'){
-  // Hold the final foot contact briefly, then switch to still. Never overlay two figures.
-  drawClip(c,a.clip,locomotion.lastFrame,player.dir16);
+  // Finish the last planted step once, then settle to idle without any ghosting.
+  drawClip(c,a.clip,a.frame,player.dir16);
  }else{
   // Start and locomotion use one full-body clip; the locked face and torso stay intact.
   drawClip(c,a.clip,a.frame,player.dir16);
@@ -411,7 +467,7 @@ function logicTick(dt){
  if(poseTestFrozen){previousPhysics={x:player.x,y:player.y};return;}
  previousPhysics={x:player.x,y:player.y};
  const moved=player.tick(dt,inputVector());
- locomotion.tick(dt,moved);
+ locomotion.tick(dt,moved,player.dir16);
 }
 function drawFrame(dt,t){
  // Render between the last two 120 Hz physics snapshots: consistent at 30/60/120 Hz.
