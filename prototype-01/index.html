@@ -108,7 +108,7 @@ class Prototype extends Phaser.Scene{
  constructor(){super('Prototype')}
  preload(){
   // LOCKED protagonist. Do not substitute generated character art.
-  this.load.spritesheet('hero','../assets/hero_winter.webp',{frameWidth:308,frameHeight:308});
+  this.load.spritesheet('hero','../assets/hero_winter.webp',{frameWidth:307,frameHeight:307});
   this.load.on('loaderror',f=>{if(f.key==='hero')document.getElementById('fail').textContent='正式な主人公素材を読み込めませんでした。元の画像を差し替えず、再読み込みしてください。'});
  }
  create(){
