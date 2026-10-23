@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>帰り灯 | 基礎検証 01</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101a23;color:#eff0e9;font-family:system-ui,-apple-system,sans-serif;touch-action:none}canvas{display:block}
+#ui{position:fixed;inset:0;pointer-events:none}#title{position:absolute;top:max(18px,env(safe-area-inset-top));left:20px;text-shadow:0 2px 12px #101824;font-size:14px;letter-spacing:.14em}#title small{display:block;font-size:10px;opacity:.66;letter-spacing:.08em;margin-top:7px}
+#pad{position:absolute;left:23px;bottom:max(32px,env(safe-area-inset-bottom));height:154px;width:154px;border:1px solid #ffffff40;border-radius:50%;background:#b6caee13;pointer-events:auto;touch-action:none}
+#nub{position:absolute;left:50%;top:50%;width:64px;height:64px;background:#dae7fd45;border:1px solid #fff8;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 20px #0005}
+#dash{position:absolute;bottom:max(54px,env(safe-area-inset-bottom));right:29px;width:88px;height:88px;border:1px solid #ffffff7d;border-radius:50%;background:#bac8df2c;color:white;pointer-events:auto;touch-action:none;font:600 13px system-ui}
+#notice{position:absolute;bottom:max(205px,env(safe-area-inset-bottom) + 170px);left:20px;right:20px;text-align:center;font-size:11px;opacity:.7}
+#fail{display:none;position:absolute;inset:20% 12%;align-content:center;text-align:center;background:#172337ef;padding:20px;pointer-events:auto;line-height:1.8}
+@media(min-width:850px){#pad,#dash{opacity:.25}#notice{bottom:25px}}
+</style></head><body>
+<div id="ui"><div id="title">帰り灯 <small>基礎検証 01 — 主人公のデザイン変更なし</small></div><div id="pad"><div id="nub"></div></div><button id="dash" type="button">走る</button><div id="notice">建物・塀・鉢・自販機に接触して確認 ／ PC：矢印キー・WASD・Shift</div><div id="fail">ゲームエンジンを読み込めませんでした。ネットワーク接続を確認し、再読み込みしてください。</div></div>
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
+<script>
+(()=>{'use strict';
+if(!window.Phaser){document.getElementById('fail').style.display='block';return;}
+const W=1280,H=960;
+// Every collider and visible prop shares a single record: no separate painted walkability guesswork.
+const layout=[
+ {id:'house',kind:'house',x:528,y:376,w:344,h:176,solid:true},
+ {id:'fence-left',kind:'fence',x:463,y:550,w:177,h:20,solid:true},
+ {id:'fence-right',kind:'fence',x:773,y:550,w:197,h:20,solid:true},
+ {id:'fence-west',kind:'fenceVertical',x:460,y:319,w:20,h:243,solid:true},
+ {id:'fence-east',kind:'fenceVertical',x:952,y:319,w:20,h:243,solid:true},
+ {id:'vending',kind:'vending',x:1030,y:570,w:65,h:54,solid:true},
+ {id:'plant-west',kind:'plant',x:396,y:531,w:29,h:25,solid:true},
+ {id:'plant-east',kind:'plant',x:997,y:531,w:30,h:25,solid:true},
+ {id:'car',kind:'car',x:195,y:288,w:170,h:105,solid:true}
+];
+const palette={snow:0xb7c7c7,road:0x3a4650,wall:0x788188,roof:0x3b5966,red:0x915f63,edge:0x929da0};
+let padVector={x:0,y:0},dashHeld=false,gameScene;
+const pad=document.getElementById('pad'),nub=document.getElementById('nub'),dash=document.getElementById('dash');
+function padUpdate(e){const r=pad.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let x=(e.clientX-cx)/61,y=(e.clientY-cy)/61;const m=Math.hypot(x,y);if(m>1){x/=m;y/=m}padVector={x,y};nub.style.transform='translate(calc(-50% + '+Math.round(x*55)+'px),calc(-50% + '+Math.round(y*55)+'px))'}
+pad.addEventListener('pointerdown',e=>{pad.setPointerCapture(e.pointerId);padUpdate(e)});
+pad.addEventListener('pointermove',e=>{if(pad.hasPointerCapture(e.pointerId))padUpdate(e)});
+function padReset(){padVector={x:0,y:0};nub.style.transform='translate(-50%,-50%)'}
+pad.addEventListener('pointerup',padReset);pad.addEventListener('pointercancel',padReset);pad.addEventListener('lostpointercapture',padReset);
+dash.addEventListener('pointerdown',e=>{dash.setPointerCapture(e.pointerId);dashHeld=true});
+for(const ev of ['pointerup','pointercancel','lostpointercapture'])dash.addEventListener(ev,()=>{dashHeld=false});
+function rect(g,x,y,w,h,color,alpha=1){g.fillStyle(color,alpha);g.fillRect(x,y,w,h)}
+function line(g,x1,y1,x2,y2,c=0xcdd7d4,a=.4,width=2){g.lineStyle(width,c,a);g.beginPath();g.moveTo(x1,y1);g.lineTo(x2,y2);g.strokePath()}
+function ground(scene){
+ const g=scene.add.graphics().setDepth(-100);
+ rect(g,0,0,W,H,0x243238);rect(g,0,0,W,960,0x516164,.24);
+ // An actual crossing of roads, visually clear borders and continuous access.
+ rect(g,0,620,W,255,palette.road);rect(g,71,0,245,H,palette.road);
+ rect(g,64,0,7,620,0x9ba8ab);rect(g,316,0,7,620,0x9ba8ab);
+ rect(g,0,615,W,6,0x919fa0);rect(g,0,875,W,7,0x919fa0);
+ // Driveway and accessible paved garden entrance (gate gap between x=640-773).
+ rect(g,620,570,166,50,0x84918f);rect(g,640,570,133,64,0x687876);
+ // Car bay connected to the west road.
+ rect(g,94,195,285,425,0x728080);
+ rect(g,99,199,275,8,0xb9c9ca,.7);
+ line(g,380,200,380,610,0xe3eeee,.42,3);
+ for(let i=0;i<8;i++){const x=45+i*182;line(g,x,753,x+66,751,0xb9bfc0,.20,2)}
+ for(let i=0;i<12;i++){const y=50+i*75;line(g,193,y,193,y+33,0xc9d1d2,.11,2)}
+ // Snow at actual curb edges, not arbitrary strips through traversable paved ground.
+ for(let i=0;i<84;i++){let q=i*113.3,x=(Math.sin(q*4.9)*.5+.5)*W,y=(Math.sin(q*2.7)*.5+.5)*H;let onRoad=(y>=620&&y<=882)||(x>=70&&x<=318);if(onRoad)continue;g.fillStyle(0xd8e2dd,.18+(i%4)*.06);g.fillEllipse(x,y,16+i%6*9,8+i%3*4)}
+ // Sidewalk paving and water channels.
+ line(g,0,601,W,601,0xb7c7c4,.4,2);line(g,332,0,332,607,0xb7c7c4,.4,2);
+ for(let x=382;x<1250;x+=81)line(g,x,597,x+34,597,0xb1c6c4,.25);
+ for(let x=0;x<1280;x+=163)for(let y=0;y<960;y+=144){if((x>323&&y<610)||(x>323&&y>880)){rect(g,x+6,y+4,9,2,0xc6d1ce,.11)}}
+ // Property footprint is visibly defined by snow-darkened lawn and raised paving.
+ rect(g,480,314,472,249,0x3b504b);rect(g,493,326,447,237,0x8a9b98,.22);
+ for(let x=490;x<950;x+=75){line(g,x,563,x+38,563,0xc4d4d2,.25,3)}
+ rect(g,654,543,104,34,0x929c97);for(let y=544;y<578;y+=18)line(g,655,y,755,y,0x5c6b69,.33,2);
+ // A little snow remains on the corner, but never obscures the road edges.
+ g.fillStyle(0xe1e8e2,.40);g.fillEllipse(351,578,53,20);g.fillEllipse(1134,600,70,17);
+}
+function buildHouse(scene,o){
+ const g=scene.add.graphics().setDepth(365);
+ rect(g,o.x,o.y,o.w,o.h,0x879092);rect(g,o.x+12,o.y+12,o.w-24,o.h-12,0x61737b);
+ for(let x=o.x+31;x<o.x+o.w-18;x+=96){rect(g,x,o.y+30,55,64,0x273f53);rect(g,x+5,o.y+34,45,56,0x68828a,.45);line(g,x+28,o.y+32,x+28,o.y+96,0xc4c7ba,.68,3)}
+ rect(g,665,455,74,96,0x4a4247);rect(g,670,467,64,78,0x65565c);rect(g,717,494,7,7,0xd1bda5);
+ const roof=scene.add.graphics().setDepth(552);
+ // The roof is drawn as a separate foreground object, but its projected footprint
+ // agrees with the impassable building rectangle.
+ roof.fillStyle(0x273a47);roof.fillPoints([{x:498,y:380},{x:558,y:260},{x:837,y:260},{x:909,y:380},{x:876,y:417},{x:527,y:417}],true);
+ roof.lineStyle(4,0x9aaca8,.65);roof.strokePoints([{x:498,y:380},{x:558,y:260},{x:837,y:260},{x:909,y:380},{x:876,y:417},{x:527,y:417}],true);
+ for(let i=0;i<8;i++)line(roof,540+i*43,285,517+i*47,398,0xb3c4c4,.20,3);
+ roof.fillStyle(0xdde6df,.52);roof.fillPoints([{x:556,y:263},{x:840,y:263},{x:859,y:292},{x:541,y:292}],true);
+ roof.fillStyle(0xe2e8e5,.60);roof.fillEllipse(590,374,106,8);roof.fillEllipse(814,391,143,11);
+}
+function makeProp(scene,o){
+ if(o.kind==='house'){buildHouse(scene,o);return}
+ const g=scene.add.graphics().setDepth(o.y+o.h+2),x=o.x,y=o.y,w=o.w,h=o.h;
+ if(o.kind==='fence'||o.kind==='fenceVertical'){
+  rect(g,x,y,w,h,0x6a7a7c);rect(g,x,y,w,5,0xcdd8d3,.75);
+  const n=o.kind==='fence'?Math.floor(w/27):Math.floor(h/28);
+  for(let i=1;i<n;i++){if(o.kind==='fence')line(g,x+i*27,y+5,x+i*27,y+h,0x33484e,.9,2);else line(g,x,y+i*28,x+w,y+i*28,0x394e54,.6,2)}
+ } else if(o.kind==='vending'){
+  rect(g,x,y-92,w,h+92,0xc8c9c4);rect(g,x+5,y-85,w-10,68,0xe6eee9);rect(g,x+9,y-79,w-18,52,0x7299ae);
+  for(let k=0;k<8;k++)rect(g,x+12+(k%4)*11,y-72+Math.floor(k/4)*22,7,14,[0x8d605d,0x6d8877,0xd0b08e][k%3]);
+  rect(g,x+6,y-10,w-12,6,0x394e5b);rect(g,x+45,y-25,12,10,0x4f6678);
+ } else if(o.kind==='car'){
+  rect(g,x,y,w,h,0x4c6873);rect(g,x+20,y+10,w-40,h-20,0x6f8389);
+  rect(g,x+34,y+22,w-68,45,0x243e4c);rect(g,x+30,y+7,10,7,0xd7d9d0);rect(g,x+w-39,y+7,10,7,0xd7d9d0);
+  rect(g,x+27,y+h-12,w-54,8,0xa0aca8);
+  for(const xx of [x+26,x+w-39])for(const yy of [y-5,y+h-5])rect(g,xx,yy,13,10,0x18252b);
+ } else if(o.kind==='plant'){
+  rect(g,x+5,y+7,w-10,h-7,0x8e7564);g.fillStyle(0x426358);g.fillEllipse(x+w/2,y+7,w+7,26);
+  g.fillStyle(0xdbe2dc,.68);g.fillEllipse(x+w/2,y+1,w,8);
+ }
+}
+class Prototype extends Phaser.Scene{
+ constructor(){super('Prototype')}
+ preload(){
+  // LOCKED protagonist. Do not substitute generated character art.
+  this.load.spritesheet('hero','../assets/hero_winter.webp',{frameWidth:308,frameHeight:308});
+  this.load.on('loaderror',f=>{if(f.key==='hero')document.getElementById('fail').textContent='正式な主人公素材を読み込めませんでした。元の画像を差し替えず、再読み込みしてください。'});
+ }
+ create(){
+  gameScene=this;
+  this.physics.world.setBounds(0,0,W,H);
+  ground(this);
+  const collisionTexture=this.make.graphics({x:0,y:0,add:false});collisionTexture.fillStyle(0xffffff);collisionTexture.fillRect(0,0,2,2);collisionTexture.generateTexture('solidPixel',2,2);collisionTexture.destroy();
+  this.blockers=this.physics.add.staticGroup();
+  for(const o of layout){
+   makeProp(this,o);
+   if(!o.solid)continue;
+   const b=this.blockers.create(o.x+o.w/2,o.y+o.h/2,'solidPixel').setVisible(false);
+   b.setDisplaySize(o.w,o.h);b.refreshBody();b.setData('id',o.id);
+  }
+  this.actor=this.add.zone(672,720,22,14);
+  this.physics.add.existing(this.actor);
+  this.actor.body.setSize(22,14).setCollideWorldBounds(true).setMaxVelocity(190,190).setDrag(0,0);
+  this.physics.add.collider(this.actor,this.blockers);
+  this.groundShadow=this.add.ellipse(672,722,25,9,0x0e1921,.68).setDepth(1000);
+  if(this.textures.exists('hero')){
+   this.sprite=this.add.sprite(672,727,'hero',0).setOrigin(.5,.92).setDisplaySize(84,84);
+  } else {
+   // No alternate character art: explicit missing-sprite indicator rather than a redesigned girl.
+   this.sprite=this.add.text(672,699,'?',{fontSize:'26px',color:'#fafafa'}).setOrigin(.5);
+  }
+  this.cameras.main.setBounds(0,0,W,H);this.cameras.main.startFollow(this.actor,true,.075,.075);this.cameras.main.setZoom(Math.min(1.04,Math.max(.63,Math.min(innerWidth/650,innerHeight/760))));
+  this.cursor=this.input.keyboard.createCursorKeys();this.wasd=this.input.keyboard.addKeys('W,A,S,D,SHIFT');
+  this.lastX=this.actor.x;this.lastY=this.actor.y;this.travel=0;this.facing=0;this.step=0;
+  // Inspection hooks exposed for deterministic geometry tests.
+  window.KAERIBI_PROBE={version:'prototype-01',layout,hero:'../assets/hero_winter.webp',
+   snapshot:()=>({x:this.actor.x,y:this.actor.y,travel:this.travel,colliderCount:this.blockers.getChildren().length}),
+   overlaps:(x,y,w=22,h=14)=>layout.filter(o=>o.solid&&x+w/2>o.x&&x-w/2<o.x+o.w&&y+h/2>o.y&&y-h/2<o.y+o.h).map(o=>o.id)};
+ }
+ update(_time,delta){
+  let x=padVector.x,y=padVector.y;
+  if(this.cursor.left.isDown||this.wasd.A.isDown)x-=1;if(this.cursor.right.isDown||this.wasd.D.isDown)x+=1;
+  if(this.cursor.up.isDown||this.wasd.W.isDown)y-=1;if(this.cursor.down.isDown||this.wasd.S.isDown)y+=1;
+  const mag=Math.hypot(x,y);
+  if(mag>1){x/=mag;y/=mag}
+  const speed=(dashHeld||this.cursor.shift.isDown||this.wasd.SHIFT.isDown)?186:116;
+  this.actor.body.setVelocity(x*speed,y*speed);
+  if(mag>.2){if(Math.abs(x)>Math.abs(y))this.facing=x<0?2:3;else this.facing=y<0?1:0}
+  const distance=Math.hypot(this.actor.x-this.lastX,this.actor.y-this.lastY);
+  this.travel+=distance;this.lastX=this.actor.x;this.lastY=this.actor.y;
+  this.groundShadow.setPosition(this.actor.x,this.actor.y+6);
+  this.sprite.setPosition(this.actor.x,this.actor.y+6).setDepth(this.actor.y+2);
+  if(this.sprite instanceof Phaser.GameObjects.Sprite){
+   // Source frames belong to the SAME approved sprite sheet; never swap characters.
+   const phaseIndex=distance>.12?Math.floor(this.travel/21)%3:0;
+   this.sprite.setFrame(this.facing+phaseIndex*4);
+  }
+ }
+}
+new Phaser.Game({type:Phaser.AUTO,parent:document.body,backgroundColor:'#131e27',width:innerWidth,height:innerHeight,scale:{mode:Phaser.Scale.RESIZE,autoCenter:Phaser.Scale.CENTER_BOTH},render:{pixelArt:false,antialias:true},physics:{default:'arcade',arcade:{debug:new URLSearchParams(location.search).has('debug'),gravity:{y:0}}},scene:[Prototype]});
+window.addEventListener('resize',()=>{if(gameScene)gameScene.cameras.main.setZoom(Math.min(1.04,Math.max(.63,Math.min(innerWidth/650,innerHeight/760))))});
+})();
+</script></body></html>
