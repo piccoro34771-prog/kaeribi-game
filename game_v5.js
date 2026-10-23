@@ -187,7 +187,7 @@
     const actuallyMoved=Math.hypot(mx,my);
     player.moving=actuallyMoved>.01;
     if(player.moving){
-      if(!anim.wasMoving){anim.state='starting';anim.elapsed=0}
+      if(!anim.wasMoving){anim.state='starting';anim.elapsed=0;anim.walkDistance=0}
       else if(anim.state==='stopping'){anim.state='starting';anim.elapsed=0}
       else if(anim.state==='starting'&&anim.elapsed>.18)anim.state='moving';
       player.dir=Math.abs(mx)>Math.abs(my)?mx<0?'left':'right':my<0?'up':'down';
@@ -260,9 +260,10 @@
           // Eight original illustrations in a seamless stride cycle.
           const frames=[2,3,4,5,6,5,4,3];
           frame=frames[Math.floor(anim.walkDistance/stride)%frames.length];
+          anim.lastStrideFrame=frame;
         }
       }else if(anim.state==='stopping'){
-        frame=anim.elapsed<.09?2:1;
+        frame=anim.elapsed<.09?(anim.lastStrideFrame??2):1;
       }else if(anim.idleAge>6.5){
         // Rare weight shifts and glances have no emotion-symbol overlays.
         const rest=(anim.idleAge-6.5)%12;
