@@ -189,6 +189,18 @@
     }
     ctx.restore();
   }
+  function drawFootprints(){
+    if(!story.vending)return;
+    const steps=[[698,608],[723,625],[756,638],[789,646],[827,644],[867,645],[903,640],[942,631],[986,620],[1031,608],[1080,602],[1133,583],[1188,574],[1245,556]];
+    ctx.save();ctx.globalAlpha=.34;ctx.fillStyle='#111d23';
+    steps.forEach(([x,y],i)=>{
+      ctx.save();ctx.translate(x,y);ctx.rotate(-.22);
+      ctx.beginPath();ctx.ellipse(-4,i%2?1:-1,2.8,5.5,-.18,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.ellipse(3,i%2?-4:3,2.8,5.2,.16,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+    });
+    ctx.restore();
+  }
   function drawHero(t){
     const x=player.x,y=player.y;
     ctx.fillStyle='rgba(1,7,16,.30)';ctx.beginPath();ctx.ellipse(x,y+1,18,6,0,0,Math.PI*2);ctx.fill();
@@ -240,7 +252,7 @@
     ctx.save();ctx.translate(W/2-camera.x*z,H/2-camera.y*z);ctx.scale(z,z);
     ctx.drawImage(scene,0,0,WORLD.w,WORLD.h);
     drawDynamicLighting();
-    drawShadow(t);drawHero(t);drawDebug();
+    drawFootprints();drawShadow(t);drawHero(t);drawDebug();
     ctx.restore();
     const vg=ctx.createRadialGradient(W*.5,H*.45,Math.min(W,H)*.19,W*.5,H*.5,Math.max(W,H)*.78);
     vg.addColorStop(0,'rgba(1,6,13,0)');vg.addColorStop(1,'rgba(0,2,11,.56)');
