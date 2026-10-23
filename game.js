@@ -2,7 +2,7 @@ const cv=document.getElementById('scene');let ctx=cv.getContext('2d');
 let W=innerWidth,H=innerHeight,D=1;
 function resize(){W=innerWidth;H=innerHeight;D=Math.min(devicePixelRatio||1,2);cv.width=W*D;cv.height=H*D}addEventListener('resize',resize);resize();
 // Artwork files are independent assets, not baked into a single background image.
-const assetPaths={hero_down:'assets/hero_down.svg',hero_up:'assets/hero_up.svg',hero_side:'assets/hero_side.svg',vending:'assets/vending.svg',tree:'assets/tree.svg'};
+const assetPaths={hero_down:'assets/hero_down.svg',hero_up:'assets/hero_up.svg',hero_side:'assets/hero_side.svg',hero_down_step:'assets/hero_down_step.svg',hero_up_step:'assets/hero_up_step.svg',hero_side_step:'assets/hero_side_step.svg',vending:'assets/vending.svg',tree:'assets/tree.svg'};
 const artwork={};for(const [key,path] of Object.entries(assetPaths)){const img=new Image();img.src=path;artwork[key]=img}
 function imageReady(key){return artwork[key]&&artwork[key].complete&&artwork[key].naturalWidth>0}
 const TILE=64,COLS=32,ROWS=24,MW=COLS*TILE,MH=ROWS*TILE;
@@ -174,10 +174,27 @@ if(o.renderMode==='ground'){
 if(o.type==='lamp'){ellipse(x+w/2,y+h-1,10,4,'#0009');line(x+w/2,y+h,x+w/2,y+8,'#555955',5);line(x+w/2,y+9,x+w/2+14,y+8,'#7d8175',3);ellipse(x+w/2+15,y+10,12,6,'#b89759');ellipse(x+w/2+15,y+12,8,3,'#f5d99b');return}if(o.type==='house')return drawHouse(o);
 if(o.type==='vending'){if(o.state==='fallen'||o.state==='falling'){ctx.save();ctx.translate(x+o.w/2,y+o.h-8);ctx.rotate(-Math.PI/2*Math.min(1,o.anim||1));ctx.translate(-(x+o.w/2),-(y+o.h-8))}if(imageReady('vending')){ctx.drawImage(artwork.vending,x-2,y-2,w+4,h+4);if(o.state==='fallen'||o.state==='falling')ctx.restore();return}
 box(x+5,y+8,w,h,'#121719');box(x,y,w,h-4,'#a63435');box(x+7,y+8,w-14,h*.48,'#b4d5d3');for(let a=0;a<12;a++)box(x+10+(a%4)*9,y+12+Math.floor(a/4)*10,5,8,['#e6a775','#93b0d2','#f1e2b5'][a%3]);box(x+7,y+h-24,w-14,13,'#aeb2aa');box(x+36,y+h-21,8,7,'#242d32');if(o.state==='fallen'||o.state==='falling')ctx.restore();return}
-if(o.type==='car'){ellipse(x+w/2,y+h-10,w*.58,25,'#0009');box(x+12,y+13,w-24,h-24,'#64665e');box(x+21,y+30,w-42,50,'#26323a');box(x+20,y+h-60,w-40,38,'#7c7a6c');box(x+5,y+30,13,32,'#1c2022');box(x+w-18,y+30,13,32,'#1c2022');box(x+18,y+h-16,21,7,'#a94b40');box(x+w-39,y+h-16,21,7,'#a94b40');return}
+if(o.type==='car'){
+ ellipse(x+w/2,y+h-8,w*.55,20,'#000a');
+ const metal=ctx.createLinearGradient(x,y,x+w,y);metal.addColorStop(0,'#242f34');metal.addColorStop(.18,'#606b6b');metal.addColorStop(.5,'#899087');metal.addColorStop(.86,'#505b5d');metal.addColorStop(1,'#222d33');
+ ctx.fillStyle=metal;ctx.beginPath();ctx.roundRect(x+10,y+5,w-20,h-12,[27,27,13,13]);ctx.fill();
+ box(x+3,y+40,13,30,'#171f23');box(x+w-16,y+40,13,30,'#171f23');
+ box(x+4,y+h-78,13,36,'#171f23');box(x+w-17,y+h-78,13,36,'#171f23');
+ ctx.fillStyle='#202e37';ctx.beginPath();ctx.roundRect(x+22,y+28,w-44,58,12);ctx.fill();
+ ctx.fillStyle='#7b918e';ctx.beginPath();ctx.moveTo(x+30,y+32);ctx.lineTo(x+w-34,y+32);ctx.lineTo(x+w-43,y+57);ctx.lineTo(x+41,y+57);ctx.fill();
+ line(x+25,y+91,x+w-25,y+91,'#a8ae9f77',2);
+ const bonnet=ctx.createLinearGradient(0,y+h-60,0,y+h-18);bonnet.addColorStop(0,'#676e69');bonnet.addColorStop(1,'#343e42');
+ box(x+18,y+h-62,w-36,39,bonnet);
+ line(x+20,y+h-59,x+20,y+h-20,'#b2baae55',1.2);line(x+w-20,y+h-59,x+w-20,y+h-20,'#142127bb',1.2);
+ box(x+17,y+h-19,24,8,'#a14e46');box(x+w-41,y+h-19,24,8,'#a14e46');
+ box(x+w/2-17,y+h-14,34,8,'#b7aa83');line(x+w/2-12,y+h-10,x+w/2+13,y+h-10,'#343b3b',1);
+ return}
 if(o.type==='fence'){box(x,y,w,h,'#54544a');for(let k=10;k<h;k+=23)line(x,y+k,x+w,y+k,'#242c2e',3);return}
 if(o.type==='tree'&&imageReady('tree')){ctx.drawImage(artwork.tree,x-22,y-33,w+44,h+47);return}
 if(o.type==='tree'){ellipse(x+w/2,y+h/2,w*.75,h*.65,'#0a1511');for(let k=0;k<19;k++){let xx=x+rnd(k,x)*w,yy=y+rnd(k,y)*h;ellipse(xx,yy,10+rnd(k,y)*15,9+rnd(k,x)*13,['#1b3327','#294333','#3b4a2c','#172a25'][k%4])}}}
+// Renderer categories are also used by regression checks.
+function isGroundRenderable(o){return o.visible&&(o.renderMode==='ground'||(o.type==='vending'&&o.state==='fallen'))}
+function isStandingRenderable(o){return o.visible&&!isGroundRenderable(o)}
 // Player position is the center of the feet, not the sprite's head or torso.
 function playerFeet(x,y){return {x:x-8,y:y-5,w:16,h:10}}
 function pass(x,y){
@@ -189,11 +206,14 @@ function pass(x,y){
 function character(){
  const x=player.x,y=player.y;
  const bob=player.moving?Math.abs(Math.sin(player.step))*1.6:0;
- const key=player.dir==='up'?'hero_up':player.dir==='down'?'hero_down':'hero_side';
+ const base=player.dir==='up'?'hero_up':player.dir==='down'?'hero_down':'hero_side';
+ const key=player.moving&&Math.floor(player.step/2)%2===1&&imageReady(base+'_step')?base+'_step':base;
  ellipse(x,y+1,11,3.8,'#0008');
  if(imageReady(key)){
   ctx.save();
   if(player.dir==='left'){ctx.translate(x*2,0);ctx.scale(-1,1)}
+  const lean=player.moving?Math.sin(player.step/2)*.035:0;
+  ctx.translate(x,y);ctx.rotate(lean);ctx.translate(-x,-y);
   ctx.drawImage(artwork[key],x-22,y-63-bob,44,64);
   ctx.restore();return;
  }
@@ -213,8 +233,6 @@ for(const lamp of objects.filter(o=>o.type==='lamp'&&o.visible)){
 }
 // Ground decals and dropped items must always be BELOW feet and standing objects.
 // Standing objects use their ground-contact Y (not their image top or array order).
-const isGroundRenderable=o=>o.visible&&(o.renderMode==='ground'||(o.type==='vending'&&o.state==='fallen'));
-const isStandingRenderable=o=>o.visible&&!isGroundRenderable(o);
 const groundObjects=objects.filter(isGroundRenderable);
 const standingObjects=objects.filter(isStandingRenderable);
 for(const o of groundObjects)drawObject(o);
